@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact Richo — Get a Free Quote | MyPainter Whangarei</title>
+    <meta
+      name="description"
+      content="Contact Richo Petersen for a free painting or handyman quote in Whangarei and Northland. Call 027 295 2110 or send a message — fast replies, no pushy sales."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container header-inner">
+        <a href="/" class="logo">MYPAINTER</a>
+        <input
+          type="checkbox"
+          id="nav-toggle"
+          class="nav-toggle"
+          aria-hidden="true"
+        />
+        <label for="nav-toggle" class="nav-hamburger" aria-label="Open menu"
+          ><span aria-hidden="true">☰</span></label
+        >
+        <nav>
+          <a href="/">Home</a>
+          <a href="/painting.html">Painting</a>
+          <a href="/handyman.html">Handyman</a>
+          <a href="/gallery.html">Gallery</a>
+          <a href="/about.html">About</a>
+          <a href="/contact.html" class="btn-cta">Get a Quote</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-inner container">
+          <div>
+            <h1>Let's Have a Yarn</h1>
+            <p class="subhead">Free quotes. Fast replies. No pushy sales.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt">
+        <div class="container contact-grid">
+          <div class="contact-details">
+            <h2>Contact details</h2>
+            <p>
+              📞 Phone:
+              <a href="tel:+64272952110">027 295 2110</a>
+            </p>
+            <p>
+              📧 Email:
+              <a href="mailto:mypaintermate@gmail.com">mypaintermate@gmail.com</a>
+            </p>
+            <p>📍 Based: Glenbervie, Whangarei</p>
+            <p>🕐 Hours: Mon–Sat, 7am–6pm</p>
+            <div class="area-note">
+              <p><strong>Service area</strong></p>
+              <p>Whangarei + 50km: no travel fee</p>
+              <p>Wider Northland: happy to come, travel fee applies</p>
+            </div>
+          </div>
+
+          <div class="contact-form-wrap">
+            <div
+              id="form-success"
+              class="form-success"
+              role="status"
+              hidden
+            >
+              ✓ Thanks! Richo will be in touch shortly.
+            </div>
+
+            <!--
+              TODO: Replace YOUR_FORM_ID with real Formspree ID. Sign up at
+              formspree.io using mypaintermate@gmail.com, create a form,
+              paste the ID here. Free tier = 50 submissions/month.
+            -->
+            <form
+              action="https://formspree.io/f/YOUR_FORM_ID"
+              method="POST"
+            >
+              <label for="name">Name</label>
+              <input id="name" type="text" name="name" required autocomplete="name" />
+
+              <label for="phone">Phone</label>
+              <input
+                id="phone"
+                type="tel"
+                name="phone"
+                required
+                autocomplete="tel"
+              />
+
+              <label for="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                required
+                autocomplete="email"
+              />
+
+              <label for="need">What do you need?</label>
+              <select id="need" name="need" required>
+                <option value="" disabled selected>Select an option</option>
+                <option value="Interior Painting">Interior Painting</option>
+                <option value="Exterior Painting">Exterior Painting</option>
+                <option value="Roof Painting">Roof Painting</option>
+                <option value="Fence/Deck/Shed">Fence/Deck/Shed</option>
+                <option value="Handyman Work">Handyman Work</option>
+                <option value="Insurance Job">Insurance Job</option>
+                <option value="Other/Not Sure">Other/Not Sure</option>
+              </select>
+
+              <label for="location">Where is the job?</label>
+              <input
+                id="location"
+                type="text"
+                name="location"
+                placeholder="e.g. Kamo, Whangarei"
+                autocomplete="address-level2"
+              />
+
+              <label for="message">Tell Richo about the job</label>
+              <textarea id="message" name="message" required></textarea>
+
+              <input
+                type="hidden"
+                name="_subject"
+                value="New enquiry from mypainter.co.nz"
+              />
+              <input
+                type="hidden"
+                name="_next"
+                value="/contact.html?sent=true"
+              />
+
+              <button type="submit" class="btn-cta">Send it through →</button>
+            </form>
+            <p class="form-footnote">
+              We reply to all enquiries within 24 hours (usually much faster).
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container footer-grid">
+        <div>
+          <h4>MYPAINTER</h4>
+          <p>
+            Richo Petersen — your local painter &amp; handyman. Based in
+            Glenbervie, Whangarei. 25+ years on the tools.
+          </p>
+        </div>
+        <div>
+          <h4>Services</h4>
+          <ul>
+            <li><a href="/painting.html">Painting</a></li>
+            <li><a href="/handyman.html">Handyman</a></li>
+            <li><a href="/gallery.html">Gallery</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Contact</h4>
+          <p>📞 <a href="tel:+64272952110">027 295 2110</a></p>
+          <p>
+            📧
+            <a href="mailto:mypaintermate@gmail.com">mypaintermate@gmail.com</a>
+          </p>
+          <p>📍 Glenbervie, Whangarei</p>
+          <p>Serving Northland within 50km — wider Northland on request</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 MyPainter · Richard Petersen · Whangarei NZ</p>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        if (new URLSearchParams(location.search).get("sent") === "true") {
+          var el = document.getElementById("form-success");
+          if (el) el.hidden = false;
+        }
+      })();
+    </script>
+  </body>
+</html>

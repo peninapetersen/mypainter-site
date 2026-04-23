@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+*.log
+.env
+
+# Local source photos (not part of site build)
+images_richard/
+*.heic
+*.HEIC
+*.AAE
