@@ -307,9 +307,29 @@ header nav .btn-cta {
   padding: 2rem;
 }
 
+.hero-image--photo {
+  padding: 0;
+  border: none;
+  background: var(--light);
+  display: block;
+  overflow: hidden;
+}
+
+.hero-img {
+  width: 100%;
+  min-height: 220px;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
 @media (min-width: 1024px) {
   .hero-image,
   .placeholder-block {
+    min-height: 320px;
+  }
+
+  .hero-img {
     min-height: 320px;
   }
 }
@@ -417,6 +437,20 @@ a.card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
   color: inherit;
+}
+
+.card-img {
+  width: calc(100% + 4rem);
+  max-width: none;
+  margin: -2rem -2rem 1rem -2rem;
+  height: 200px;
+  object-fit: cover;
+}
+
+@media (min-width: 768px) {
+  .card-img {
+    height: 220px;
+  }
 }
 
 .card h3 {
@@ -549,6 +583,14 @@ a.card:hover {
   aspect-ratio: 4 / 3;
 }
 
+.painting-img-wrap img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
 /* Handyman categories */
 .handyman-grid {
   display: grid;
@@ -621,25 +663,37 @@ a.card:hover {
 }
 
 .gallery-item {
+  position: relative;
   aspect-ratio: 3 / 4;
   border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--navy);
+  overflow: hidden;
+  margin: 0;
   box-shadow: var(--shadow);
 }
 
-.gallery-item:nth-child(odd) {
-  background: var(--cream);
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.gallery-item:nth-child(even) {
-  background: var(--light);
+.gallery-item figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(
+    to top,
+    rgba(15, 58, 95, 0.92),
+    rgba(15, 58, 95, 0.5),
+    transparent
+  );
+  color: var(--cream);
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .gallery-note {
@@ -667,6 +721,37 @@ a.card:hover {
   margin-top: 2rem;
   font-weight: 600;
   color: var(--navy);
+}
+
+.about-hero-photo {
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: block;
+  overflow: hidden;
+}
+
+.about-hero-img {
+  width: 100%;
+  min-height: 260px;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+@media (min-width: 1024px) {
+  .about-hero-img {
+    min-height: 320px;
+  }
+}
+
+.about-figure {
+  margin: 2rem 0;
+}
+
+.about-photo {
+  width: 100%;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .facts-strip {
