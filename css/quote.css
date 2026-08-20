@@ -15,7 +15,7 @@
   padding: 14mm 16mm;
   font-family: Inter, system-ui, sans-serif;
   font-size: 11pt;
-  line-height: 1.45;
+  line-height: 1;
 }
 
 .quote-top {
@@ -29,7 +29,7 @@
 }
 
 .quote-top img.quote-logo {
-  height: 48px;
+  height: 84px;
   width: auto;
 }
 
@@ -89,7 +89,7 @@
 }
 
 .quote-scope p {
-  margin: 0 0 0.65rem;
+  margin: 0 0 1pt;
 }
 
 .quote-lines {

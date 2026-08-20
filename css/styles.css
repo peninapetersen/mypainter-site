@@ -101,9 +101,9 @@ header {
 }
 
 .logo img {
-  height: clamp(2rem, 5vw, 2.6rem);
+  height: clamp(2.75rem, 7vw, 3.75rem);
   width: auto;
-  max-width: min(220px, 58vw);
+  max-width: min(300px, 70vw);
 }
 
 .logo:hover {
