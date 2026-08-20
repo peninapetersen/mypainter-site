@@ -1,0 +1,167 @@
+/* A4 quotation — modern, no tables */
+:root {
+  --q-yellow: #fdd85d;
+  --q-ink: #1a1a1a;
+  --q-muted: #555;
+  --q-line: #e5e0d6;
+  --q-paper: #ffffff;
+}
+
+.quote-sheet {
+  background: var(--q-paper);
+  color: var(--q-ink);
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 14mm 16mm;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 11pt;
+  line-height: 1.45;
+}
+
+.quote-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid var(--q-yellow);
+}
+
+.quote-top img.quote-logo {
+  height: 48px;
+  width: auto;
+}
+
+.quote-meta {
+  text-align: right;
+  font-size: 0.95rem;
+}
+
+.quote-meta .num {
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.quote-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.quote-party h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--q-muted);
+  margin-bottom: 0.4rem;
+}
+
+.quote-party p {
+  margin: 0.15rem 0;
+}
+
+.quote-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.quote-section {
+  margin-bottom: 1.35rem;
+}
+
+.quote-section h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--q-muted);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--q-line);
+}
+
+.quote-scope {
+  white-space: pre-wrap;
+}
+
+.quote-scope p {
+  margin: 0 0 0.65rem;
+}
+
+.quote-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.quote-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--q-line);
+}
+
+.quote-line .desc {
+  flex: 1;
+}
+
+.quote-line .amt {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.quote-totals {
+  margin-top: 1.5rem;
+  padding: 1rem 1.15rem;
+  background: #faf7ef;
+  border-left: 4px solid var(--q-yellow);
+}
+
+.quote-totals .row {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.35rem 0;
+}
+
+.quote-totals .grand {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-top: 0.5rem;
+}
+
+.quote-note {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--q-muted);
+}
+
+.quote-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--q-line);
+  font-size: 0.85rem;
+  color: var(--q-muted);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .quote-sheet {
+    padding: 0;
+    max-width: none;
+    box-shadow: none;
+  }
+}

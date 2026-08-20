@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quote MP-130 — mypainter.co.nz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/quote.css" />
+  <style>
+    body { background: #e8e4db; margin: 0; font-family: Inter, system-ui, sans-serif; }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: center;
+      padding: 0.75rem 1rem; background: #0f3a5f; color: #fff;
+    }
+    .toolbar button, .toolbar a {
+      border: 0; border-radius: 8px; padding: 0.65rem 1rem; font-weight: 700; cursor: pointer;
+      text-decoration: none; font: inherit; color: #1a1a1a; background: #fdd85d;
+    }
+    .toolbar a.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.4); }
+    .wrap { padding: 1.25rem 0.75rem 2.5rem; }
+    .quote-sheet { box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+    @media print {
+      .toolbar, .wrap { padding: 0; }
+      body { background: #fff; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button type="button" onclick="window.print()">Download / Print PDF</button>
+    <a href="mailto:manager@firstaidnz.co.nz?subject=Quotation%20MP-130%20%E2%80%94%20mypainter.co.nz&body=Hi%20Shelly%20%26%20Nigel%2C%0A%0APlease%20find%20your%20quotation%20MP-130%20here%3A%0Ahttps%3A%2F%2Fmypainter.co.nz%2Fquotes%2FMP-130.html%0A%0ATotal%3A%20%2411%2C100%20%28not%20registered%20for%20GST%29%0ADeposit%3A%20%242%2C000%0A%0AThanks%2C%0ARichard%20Petersen%0A027%20295%202110">Email client</a>
+    <a class="ghost" href="/">Back to site</a>
+  </div>
+  <div class="wrap">
+    <article class="quote-sheet" id="quote-sheet">
+      <div class="quote-top">
+        <img class="quote-logo" src="/images/logo.png" alt="mypainter.co.nz" />
+        <div class="quote-meta">
+          <div class="num">Quote: MP-130</div>
+          <div>Date: 20.08.'26</div>
+          <div>Valid: 20.09.'26</div>
+        </div>
+      </div>
+
+      <div class="quote-parties">
+        <div class="quote-party">
+          <h3>To</h3>
+          <p><strong>Shelly &amp; Nigel Key</strong></p>
+          <p>13 Tauroa St<br/>Raumanga</p>
+          <p>021 815 522</p>
+          <p>manager@firstaidnz.co.nz</p>
+        </div>
+        <div class="quote-party">
+          <h3>From</h3>
+          <p><strong>Richard Petersen</strong></p>
+          <p>027 295 2110</p>
+          <p>mypaintermate@gmail.com</p>
+          <p>mypainter.co.nz</p>
+        </div>
+      </div>
+
+      <h1 class="quote-title">Quotation</h1>
+
+      <section class="quote-section">
+        <h2>Scope of work</h2>
+        <div class="quote-scope">
+          <p>Interior painting at above address.</p>
+          <p>Kitchen, kitchen floor, toilet, toilet floor, windows, door handles and hinges masked/covered.</p>
+          <p>Areas to be painted, filled and sanded.</p>
+          <p>All previously varnished trims and doors sanded and undercoated with Resene waterborne Quick Dry (this product WILL adhere well). Any other filled areas will also be undercoated.</p>
+          <p>Ceilings and walls painted with 2x coats of Aalto tradeline low sheen.</p>
+          <p>Surfaces sprayed and back rolled to leave an even stippled finish. This allows ceilings to be washable.</p>
+          <p>Doors, window frames and trims (post undercoat) 2x coats Aalto Satin water based enamel.</p>
+          <p>All work will be of a very high standard.</p>
+        </div>
+      </section>
+
+      <section class="quote-section">
+        <h2>Exclusions</h2>
+        <div class="quote-scope">
+          <p>Kitchen cabinetry, stairs, hallway closet, exterior or front door, garage.</p>
+          <p>Major plaster work (if entire walls need to be skim coated).</p>
+        </div>
+      </section>
+
+      <section class="quote-section">
+        <h2>Pricing</h2>
+        <div class="quote-lines">
+          <div class="quote-line">
+            <div class="desc">Interior painting as scoped</div>
+            <div class="amt">$11,100.00</div>
+          </div>
+        </div>
+        <div class="quote-totals">
+          <div class="row grand"><span>Total Price</span><span>$11,100.00</span></div>
+          <div class="row"><span>Deposit</span><span>$2,000.00</span></div>
+          <div class="row"><span>Balance</span><span>$9,100.00</span></div>
+          <p class="quote-note">Not registered for GST.</p>
+        </div>
+      </section>
+
+      <footer class="quote-footer">
+        Quote valid until 20.09.'26. Thank you for the opportunity.
+      </footer>
+    </article>
+  </div>
+</body>
+</html>

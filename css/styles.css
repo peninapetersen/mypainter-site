@@ -94,15 +94,20 @@ header {
 }
 
 .logo {
-  font-weight: 800;
-  font-size: clamp(1.15rem, 3vw, 1.35rem);
-  letter-spacing: 0.04em;
-  color: var(--navy);
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
+  line-height: 0;
+}
+
+.logo img {
+  height: clamp(2rem, 5vw, 2.6rem);
+  width: auto;
+  max-width: min(220px, 58vw);
 }
 
 .logo:hover {
-  color: var(--orange);
+  opacity: 0.9;
 }
 
 /* Mobile nav — checkbox */
