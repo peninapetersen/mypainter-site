@@ -9,7 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/quote.css" />
   <style>
-    body { background: #e8e4db; margin: 0; font-family: Inter, system-ui, sans-serif; }
+    html, body { margin: 0; padding: 0; }
+    body { background: #cfc9bc; font-family: Inter, system-ui, sans-serif; }
     .toolbar {
       position: sticky; top: 0; z-index: 10;
       display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: center;
@@ -20,11 +21,32 @@
       text-decoration: none; font: inherit; color: #1a1a1a; background: #fdd85d;
     }
     .toolbar a.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.4); }
-    .wrap { padding: 1.5rem 1rem 2.5rem; }
-    .quote-sheet { box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+    .wrap {
+      display: flex;
+      justify-content: center;
+      padding: 1.25rem 0.75rem 2rem;
+    }
+    /* Exact A4 paper on screen */
+    .quote-sheet {
+      width: 210mm !important;
+      height: 297mm !important;
+      min-height: 297mm !important;
+      max-height: 297mm !important;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
     @media print {
-      .toolbar, .wrap { padding: 0 !important; margin: 0 !important; }
+      .toolbar { display: none !important; }
+      .wrap { padding: 0 !important; margin: 0 !important; display: block !important; }
       body { background: #fff !important; }
+      .quote-sheet {
+        width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+      }
     }
   </style>
 </head>
