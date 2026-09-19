@@ -37,6 +37,27 @@
     }
   }
 
+  function setEditMode(on) {
+    editMode = on;
+    document.body.classList.toggle("cms-editing", editMode);
+    document.querySelectorAll("[data-block]").forEach((el) => {
+      if (editMode) {
+        el.setAttribute("contenteditable", "true");
+        el.setAttribute("spellcheck", "true");
+      } else {
+        el.removeAttribute("contenteditable");
+      }
+    });
+    const btn = document.getElementById("cms-edit-toggle");
+    const hint = document.getElementById("cms-edit-hint");
+    if (btn) btn.textContent = editMode ? "Stop editing" : "Edit text";
+    if (hint) {
+      hint.textContent = editMode
+        ? "Click yellow boxes to change text — click away to save"
+        : "Press Edit text, then click a yellow box (heading or intro)";
+    }
+  }
+
   function showToolbar() {
     if (toolbar) return;
     toolbar = document.createElement("div");
@@ -46,19 +67,22 @@
       <button type="button" id="cms-edit-toggle">Edit text</button>
       <a href="/admin/gallery.html">Gallery</a>
       <a href="/admin/">Dashboard</a>
-      <button type="button" id="cms-logout">Log out</button>`;
+      <button type="button" id="cms-logout">Log out</button>
+      <p class="cms-hint" id="cms-edit-hint">Press Edit text, then click a yellow box (heading or intro)</p>`;
     document.body.appendChild(toolbar);
 
     document.getElementById("cms-edit-toggle").addEventListener("click", () => {
-      editMode = !editMode;
-      document.body.classList.toggle("cms-editing", editMode);
-      document.getElementById("cms-edit-toggle").textContent = editMode ? "Stop editing" : "Edit text";
+      setEditMode(!editMode);
     });
 
     document.getElementById("cms-logout").addEventListener("click", async () => {
       await fetch("/api/auth/logout", { method: "POST" });
       location.reload();
     });
+
+    if (new URLSearchParams(location.search).get("edit") === "1") {
+      setEditMode(true);
+    }
   }
 
   async function loadBlocks() {
@@ -177,10 +201,7 @@
     await loadGallery();
     await checkAdmin();
     if (isAdmin) {
-      document.querySelectorAll("[data-block]").forEach((el) => {
-        el.setAttribute("contenteditable", "true");
-        el.setAttribute("spellcheck", "true");
-      });
+      document.body.classList.add("cms-admin");
     }
   });
 })();

@@ -27,10 +27,22 @@
   text-decoration: none;
 }
 #cms-toolbar span { margin-right: auto; }
+#cms-toolbar .cms-hint {
+  flex: 1 1 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.92;
+  margin: 0;
+}
+body.cms-admin [data-block] {
+  outline: 2px dashed rgba(253, 216, 93, 0.45);
+  outline-offset: 4px;
+}
 body.cms-editing [data-block] {
-  outline: 2px dashed #fdd85d;
-  outline-offset: 3px;
+  outline: 3px dashed #fdd85d;
+  outline-offset: 4px;
   cursor: text;
+  background: rgba(253, 216, 93, 0.08);
 }
 [data-block].cms-saving { opacity: 0.6; }
 [data-block].cms-saved { outline-color: #3d9a5f !important; }
