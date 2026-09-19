@@ -155,6 +155,14 @@ export async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Link job expenses to an invoice after create (pass-through materials on final bill). */
+export async function linkExpensesToInvoice(expenseIds: string[], invoiceId: string): Promise<void> {
+  const ids = [...new Set(expenseIds.filter(Boolean))];
+  if (!ids.length) return;
+  const { error } = await supabase.from("mp_expenses").update({ invoice_id: invoiceId }).in("id", ids);
+  if (error && !isSchemaColumnError(error.message)) throw error;
+}
+
 export function expenseFromScan(scan: ReceiptScanResult, receipt_path: string, ai_raw: Record<string, unknown>): Omit<Expense, "id" | "user_id" | "job_id" | "created_at" | "updated_at"> {
   return {
     supplier_id: null,

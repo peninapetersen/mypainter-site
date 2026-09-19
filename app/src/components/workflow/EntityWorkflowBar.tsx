@@ -6,7 +6,6 @@ import { formatDuration } from "@/lib/timesheets";
 
 type StepKey = "request" | "lead" | "quote" | "jobs_on" | "invoice";
 
-/** Tradie order: enquiry → lead visit → quote → customer approves → Jobs On → invoice */
 const MAIN_STEPS: { key: StepKey; label: string; icon: typeof ScrollText }[] = [
   { key: "request", label: "Request", icon: ScrollText },
   { key: "lead", label: "Lead", icon: Hammer },
@@ -48,11 +47,11 @@ function nextAction(
     if (chain.quote.status === "approved") {
       return { label: "Open Jobs On", to: `/jobs-on/list` };
     }
-    return { label: "Send quote to customer", to: `/quotes/${chain.quote.id}` };
+    return { label: "Send quote", to: `/quotes/${chain.quote.id}` };
   }
   if (current === "quote" && chain.quote && chain.jobsOn) {
     if (chain.jobsOn.status === "draft") {
-      return { label: "Jobs On (draft)", to: `/jobs-on/${chain.jobsOn.id}` };
+      return { label: "Jobs On draft", to: `/jobs-on/${chain.jobsOn.id}` };
     }
     return { label: "Open Jobs On", to: `/jobs-on/${chain.jobsOn.id}` };
   }
@@ -63,6 +62,10 @@ function nextAction(
     return { label: "Add expense", to: `/expenses/new?fromInvoice=${chain.invoice.id}` };
   }
   return null;
+}
+
+function Divider() {
+  return <span className="mx-0.5 hidden h-4 w-px shrink-0 bg-slate-200 sm:inline-block" aria-hidden />;
 }
 
 export function EntityWorkflowBar({
@@ -96,8 +99,8 @@ export function EntityWorkflowBar({
 
   if (loading) {
     return (
-      <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-        Loading workflow…
+      <div className="mb-2 flex h-8 items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-[10px] text-slate-400">
+        Loading pipeline…
       </div>
     );
   }
@@ -106,94 +109,87 @@ export function EntityWorkflowBar({
 
   const action = current && current !== "expense" && current !== "timesheet" ? nextAction(current, chain) : null;
   const totalTime = chain.timesheets.reduce((sum, t) => sum + (t.duration_seconds ?? 0), 0);
+  const showJobLinks = !!(chain.lead || chain.jobsOn);
 
   return (
-    <div className="mb-6 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 shadow-sm">
-      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Pipeline</p>
-
-      <div className="flex flex-wrap items-center gap-1">
-        {MAIN_STEPS.map((step, i) => {
-          const href = stepHref(step.key, chain);
-          const isCurrent = current === step.key || (current === "expense" && step.key === "invoice");
-          const Icon = step.icon;
-          return (
-            <div key={step.key} className="flex items-center gap-1">
-              {i > 0 && <ArrowRight size={14} className="mx-0.5 text-slate-300" />}
-              {href ? (
-                <Link
-                  to={href}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-                    isCurrent ? "bg-[var(--mp-navy)] text-white" : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                  }`}
-                  title={stepLabel(step.key, chain)}
-                >
-                  <Check size={12} />
-                  <Icon size={14} />
-                  {step.label}
-                </Link>
-              ) : (
-                <span
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
-                    isCurrent ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  <Icon size={14} />
-                  {step.label}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        {(chain.lead || chain.jobsOn) && (
-          <>
-            <Link
-              to={`/expenses/new?fromJob=${chain.lead?.id ?? ""}&fromJobsOn=${chain.jobsOn?.id ?? ""}&fromQuote=${chain.quote?.id ?? ""}`}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-[var(--mp-orange)]"
-            >
-              <Wallet size={12} />
-              Expense{chain.expenses.length ? ` (${chain.expenses.length})` : ""}
-            </Link>
-            {chain.lead && (
+    <div className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+      {MAIN_STEPS.map((step, i) => {
+        const href = stepHref(step.key, chain);
+        const isCurrent = current === step.key || (current === "expense" && step.key === "invoice");
+        const Icon = step.icon;
+        return (
+          <div key={step.key} className="flex items-center gap-0.5">
+            {i > 0 && <ArrowRight size={10} className="text-slate-300" />}
+            {href ? (
               <Link
-                to={`/timesheets/new?fromJob=${chain.lead.id}`}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:border-[var(--mp-orange)]"
+                to={href}
+                title={stepLabel(step.key, chain)}
+                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                  isCurrent ? "bg-[var(--mp-navy)] text-white" : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                }`}
               >
-                <Clock size={12} />
-                Time{chain.timesheets.length ? ` (${formatDuration(totalTime)})` : ""}
+                <Check size={9} />
+                <Icon size={11} />
+                <span className="hidden sm:inline">{step.label}</span>
               </Link>
+            ) : (
+              <span
+                title={step.label}
+                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  isCurrent ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-400"
+                }`}
+              >
+                <Icon size={11} />
+                <span className="hidden sm:inline">{step.label}</span>
+              </span>
             )}
-          </>
-        )}
-        {chain.expenses.length > 0 && (
-          <Link to="/expenses/list" className="text-xs font-semibold text-[var(--mp-orange)] underline">
-            View {chain.expenses.length} expense{chain.expenses.length === 1 ? "" : "s"}
+          </div>
+        );
+      })}
+
+      {showJobLinks && (
+        <>
+          <Divider />
+          <Link
+            to={`/expenses/new?fromJob=${chain.lead?.id ?? ""}&fromJobsOn=${chain.jobsOn?.id ?? ""}&fromQuote=${chain.quote?.id ?? ""}`}
+            className="inline-flex items-center gap-0.5 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:border-[var(--mp-orange)]"
+          >
+            <Wallet size={10} />
+            Expense{chain.expenses.length ? ` (${chain.expenses.length})` : ""}
           </Link>
-        )}
-      </div>
+          {chain.lead && (
+            <Link
+              to={`/timesheets/new?fromJob=${chain.lead.id}${chain.jobsOn ? `&fromJobsOn=${chain.jobsOn.id}` : ""}`}
+              className="inline-flex items-center gap-0.5 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:border-[var(--mp-orange)]"
+            >
+              <Clock size={10} />
+              Time{chain.timesheets.length ? ` (${formatDuration(totalTime)})` : ""}
+            </Link>
+          )}
+        </>
+      )}
 
       {action?.to && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <>
+          <Divider />
           <button
             type="button"
             onClick={() => navigate(action.to)}
-            className="inline-flex items-center gap-1 rounded-lg bg-[var(--mp-orange)] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90"
+            className="inline-flex items-center gap-0.5 rounded bg-[var(--mp-orange)] px-2 py-0.5 text-[10px] font-bold text-white hover:opacity-90"
           >
             Next: {action.label}
-            <ArrowRight size={14} />
+            <ArrowRight size={10} />
           </button>
           {current === "request" && chain.request && !chain.lead && (
             <button
               type="button"
               onClick={() => navigate(`/quotes/new?fromRequest=${chain.request!.id}`)}
-              className="text-xs font-semibold text-slate-500 underline"
+              className="text-[10px] font-semibold text-slate-400 underline hover:text-slate-600"
             >
-              Skip visit — quote from request
+              Skip visit
             </button>
           )}
-        </div>
+        </>
       )}
     </div>
   );

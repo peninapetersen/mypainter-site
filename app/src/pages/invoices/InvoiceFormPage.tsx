@@ -28,11 +28,9 @@ import {
   sendInvoiceToCustomer,
   updateInvoice,
 } from "@/lib/invoices";
+import { linkExpensesToInvoice } from "@/lib/expenses";
+import { prefillInvoiceFromWorkflow } from "@/lib/invoice-prefill";
 import { upsertPipelineForWorkflow } from "@/lib/pipeline";
-import { getJobsOn } from "@/lib/jobs-on";
-import { getJob, listJobs } from "@/lib/jobs";
-import { getQuote } from "@/lib/quotes";
-import { getRequest } from "@/lib/requests";
 import { getWorkSettings } from "@/lib/work-settings";
 import type { Client, LineItem, WorkSettings } from "@/types/entities";
 
@@ -78,6 +76,8 @@ export function InvoiceFormPage() {
   const [testimonialUrl, setTestimonialUrl] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [sending, setSending] = useState(false);
+  const [expensesAddedCount, setExpensesAddedCount] = useState(0);
+  const [expenseIdsToLink, setExpenseIdsToLink] = useState<string[]>([]);
   const [docProfile, setDocProfile] = useState(() => documentProfileFromSettings(null));
   const [form, setForm] = useState({
     client_id: "",
@@ -102,10 +102,9 @@ export function InvoiceFormPage() {
     async function load() {
       try {
         if (isNew) {
-          const [ws, clientList, jobs] = await Promise.all([
+          const [ws, clientList] = await Promise.all([
             getWorkSettings().catch(() => null),
             clients.length ? Promise.resolve(clients) : listClients(),
-            listJobs().catch(() => []),
           ]);
           if (cancelled) return;
           if (ws) {
@@ -113,84 +112,50 @@ export function InvoiceFormPage() {
             setGstRate(resolveGstRate(ws));
           }
           setPreviewNumber(await peekInvoiceNumber());
+
           const fromJob = search.get("fromJob");
           const fromJobsOn = search.get("fromJobsOn");
           const fromQuote = search.get("fromQuote");
           const fromRequest = search.get("fromRequest");
-
           const subjectDefault = ws?.invoice_subject_default ?? "For Services Rendered";
           const useJobTitle = ws?.invoice_use_job_title ?? true;
 
-          if (fromJobsOn) {
-            const on = await getJobsOn(fromJobsOn);
+          const hasWorkflowSource = !!(fromJobsOn || fromJob || fromQuote || fromRequest);
+          if (hasWorkflowSource) {
+            const prefill = await prefillInvoiceFromWorkflow(
+              {
+                jobsOnId: fromJobsOn ?? undefined,
+                leadId: fromJob ?? undefined,
+                jobId: fromJob ?? undefined,
+                quoteId: fromQuote ?? undefined,
+                requestId: fromRequest ?? undefined,
+              },
+              { subjectDefault, useJobTitle },
+            );
             if (cancelled) return;
-            if (on) {
-              const clientId = on.client_id ?? "";
-              setForm((f) => ({
-                ...f,
-                client_id: clientId,
-                jobs_on_id: on.id,
-                job_id: on.lead_id,
-                quote_id: on.quote_id,
-                request_id: on.request_id,
-                subject: useJobTitle && on.title ? on.title : subjectDefault,
-                payment_terms: paymentTermsForClient(ws, clientId, clientList),
-                line_items: on.line_items.filter((li) => !li.isText),
-              }));
-            }
-          } else if (fromJob) {
-            const j = await getJob(fromJob);
-            if (cancelled) return;
-            if (j) {
-              const clientId = j.client_id ?? "";
-              setForm((f) => ({
-                ...f,
-                client_id: clientId,
-                job_id: j.id,
-                quote_id: j.quote_id,
-                subject: useJobTitle && j.title ? j.title : subjectDefault,
-                payment_terms: paymentTermsForClient(ws, clientId, clientList),
-                line_items: j.line_items.filter((li) => !li.isText),
-                gstRegistered: !!j.billing_flags?.gstRegistered,
-              }));
-              setShowTax(!!j.billing_flags?.gstRegistered);
-            }
-          } else if (fromQuote) {
-            const q = await getQuote(fromQuote);
-            if (cancelled) return;
-            if (q) {
-              const linkedJob = jobs.find((j) => j.quote_id === q.id) ?? null;
-              const clientId = q.client_id ?? "";
-              setForm((f) => ({
-                ...f,
-                client_id: clientId,
-                job_id: linkedJob?.id ?? null,
-                quote_id: q.id,
-                request_id: q.request_id,
-                subject: useJobTitle && q.title ? q.title : subjectDefault,
-                payment_terms: paymentTermsForClient(ws, clientId, clientList),
-                line_items: q.line_items.filter((li) => !li.isText),
-                discount: Number(q.discount),
-                gstRegistered: Number(q.gst) > 0,
-                contract: q.terms || DEFAULT_INVOICE_CONTRACT,
-              }));
-              setShowDiscount(Number(q.discount) > 0);
-              setShowTax(Number(q.gst) > 0);
-            }
-          } else if (fromRequest) {
-            const r = await getRequest(fromRequest);
-            if (cancelled) return;
-            if (r) {
-              const clientId = r.client_id ?? "";
-              setForm((f) => ({
-                ...f,
-                client_id: clientId,
-                request_id: r.id,
-                subject: useJobTitle && r.title ? r.title : subjectDefault,
-                payment_terms: paymentTermsForClient(ws, clientId, clientList),
-                line_items: r.line_items.filter((li) => !li.isText),
-              }));
-            }
+            const clientId = prefill.client_id ?? "";
+            setForm((f) => ({
+              ...f,
+              client_id: clientId,
+              job_id: prefill.job_id,
+              jobs_on_id: prefill.jobs_on_id,
+              quote_id: prefill.quote_id,
+              request_id: prefill.request_id,
+              subject: prefill.subject,
+              payment_terms: paymentTermsForClient(ws, clientId, clientList),
+              line_items: prefill.line_items,
+              discount: prefill.discount,
+              gstRegistered: prefill.gstRegistered,
+              contract: prefill.contract,
+              client_message: prefill.client_message,
+              internal_notes: prefill.internal_notes,
+            }));
+            setExpenseIdsToLink(prefill.expenseIdsToLink);
+            setExpensesAddedCount(prefill.expensesAddedCount);
+            setShowDiscount(prefill.discount > 0);
+            setShowTax(prefill.gstRegistered);
+            setShowClientMessage(!!prefill.client_message.trim());
+            setShowContract(!!prefill.contract.trim());
           } else {
             setForm((f) => ({
               ...f,
@@ -268,6 +233,7 @@ export function InvoiceFormPage() {
     try {
       if (isNew) {
         const inv = await createInvoice(payload);
+        await linkExpensesToInvoice(expenseIdsToLink, inv.id).catch(() => {});
         await upsertPipelineForWorkflow({
           request_id: form.request_id,
           quote_id: form.quote_id,
@@ -459,6 +425,17 @@ export function InvoiceFormPage() {
         <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
           <p className="font-semibold">Customer testimonial link</p>
           <p className="mt-1 break-all text-xs">{testimonialUrl}</p>
+        </div>
+      )}
+
+      {isNew && expensesAddedCount > 0 && (
+        <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <p className="font-semibold">
+            {expensesAddedCount} job expense{expensesAddedCount === 1 ? "" : "s"} added as line items
+          </p>
+          <p className="mt-0.5 text-xs text-sky-700">
+            Pulled from this job&apos;s materials and receipts. Review amounts before sending — they&apos;ll link to this invoice when saved.
+          </p>
         </div>
       )}
 

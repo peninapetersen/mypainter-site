@@ -133,7 +133,8 @@ export async function loadWorkflowChain(anchor: WorkflowAnchor): Promise<Workflo
     (jobsOn && e.jobs_on_id === jobsOn.id) ||
     (invoice && e.invoice_id === invoice.id);
 
-  const timesheetFilter = (t: CrewTimesheet) => lead && t.job_id === lead.id;
+  const timesheetFilter = (t: CrewTimesheet) =>
+    (jobsOn && t.jobs_on_id === jobsOn.id) || (lead != null && t.job_id === lead.id);
 
   return {
     request,
