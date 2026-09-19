@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gallery Admin | MyPainter</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+    <style>
+      .album-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+      .album-row {
+        display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+        padding: 0.75rem; background: #faf7ef; border-radius: 8px;
+      }
+      .album-row.active { outline: 2px solid #0f3a5f; }
+      .photo-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem;
+      }
+      .photo-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+      .photo-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+      .photo-card .meta { padding: 0.5rem; font-size: 0.85rem; }
+      .photo-card input { width: 100%; margin-top: 0.35rem; font: inherit; padding: 0.35rem; border: 1px solid #ddd; border-radius: 4px; }
+      .photo-card .actions { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
+      .photo-card .actions button { flex: 1; font-size: 0.75rem; padding: 0.35rem; }
+    </style>
+  </head>
+  <body class="admin-body">
+    <div class="admin-wrap">
+      <div class="admin-header">
+        <a href="/admin/"><img src="/images/logo.png" alt="MyPainter" /></a>
+        <div class="btn-row" style="margin:0">
+          <a href="/gallery.html" class="btn btn-ghost">View gallery</a>
+          <button type="button" class="btn btn-ghost" id="logout-btn">Log out</button>
+        </div>
+      </div>
+
+      <div id="gate" class="admin-card"><p>Checking login…</p></div>
+      <div id="app" hidden>
+        <div class="admin-card">
+          <h1>Gallery folders</h1>
+          <div class="admin-grid">
+            <div class="field">
+              <label>New folder name</label>
+              <input id="new-album-title" placeholder="e.g. Grant's Job" />
+            </div>
+            <div class="field" style="justify-content:flex-end">
+              <label>&nbsp;</label>
+              <button type="button" class="btn btn-primary" id="create-album-btn">Create folder</button>
+            </div>
+          </div>
+          <div id="album-list" class="album-list"></div>
+        </div>
+
+        <div class="admin-card" id="photos-panel" hidden>
+          <h2 id="photos-title">Photos</h2>
+          <div class="field">
+            <label>Upload photos</label>
+            <input type="file" id="upload-input" accept="image/*" multiple />
+          </div>
+          <div id="photo-grid" class="photo-grid"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      let albums = [];
+      let activeAlbumId = null;
+
+      async function api(path, opts = {}) {
+        const res = await fetch(path, opts);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        return data;
+      }
+
+      async function requireAuth() {
+        const me = await fetch("/api/auth/me").then((r) => r.json());
+        if (!me.authenticated) {
+          location.href = "/admin/";
+          return false;
+        }
+        document.getElementById("gate").hidden = true;
+        document.getElementById("app").hidden = false;
+        return true;
+      }
+
+      async function loadAlbums() {
+        const data = await api("/api/gallery/albums");
+        albums = data.albums || [];
+        renderAlbums();
+      }
+
+      function renderAlbums() {
+        const el = document.getElementById("album-list");
+        el.innerHTML = albums
+          .map(
+            (a) => `
+          <div class="album-row ${a.id === activeAlbumId ? "active" : ""}" data-id="${a.id}">
+            <strong>${a.title}</strong>
+            <span style="color:#666;font-size:0.85rem">/${a.slug}</span>
+            <button type="button" class="btn btn-ghost open-album">Open</button>
+            <button type="button" class="btn btn-ghost rename-album">Rename</button>
+            <button type="button" class="btn btn-danger delete-album">Delete</button>
+          </div>`,
+          )
+          .join("");
+
+        el.querySelectorAll(".open-album").forEach((btn) =>
+          btn.addEventListener("click", () => openAlbum(btn.closest(".album-row").dataset.id)),
+        );
+        el.querySelectorAll(".rename-album").forEach((btn) =>
+          btn.addEventListener("click", async () => {
+            const id = btn.closest(".album-row").dataset.id;
+            const album = albums.find((a) => a.id === id);
+            const title = prompt("Folder name", album.title);
+            if (!title) return;
+            await api(`/api/gallery/albums/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title }),
+            });
+            await loadAlbums();
+          }),
+        );
+        el.querySelectorAll(".delete-album").forEach((btn) =>
+          btn.addEventListener("click", async () => {
+            const id = btn.closest(".album-row").dataset.id;
+            if (!confirm("Delete this folder and all its photos?")) return;
+            await api(`/api/gallery/albums/${id}`, { method: "DELETE" });
+            if (activeAlbumId === id) {
+              activeAlbumId = null;
+              document.getElementById("photos-panel").hidden = true;
+            }
+            await loadAlbums();
+          }),
+        );
+      }
+
+      async function openAlbum(id) {
+        activeAlbumId = id;
+        renderAlbums();
+        const album = albums.find((a) => a.id === id);
+        document.getElementById("photos-panel").hidden = false;
+        document.getElementById("photos-title").textContent = `Photos — ${album.title}`;
+        await loadPhotos();
+      }
+
+      async function loadPhotos() {
+        const data = await api(`/api/gallery/photos?albumId=${activeAlbumId}`);
+        const grid = document.getElementById("photo-grid");
+        grid.innerHTML = (data.photos || [])
+          .map(
+            (p) => `
+          <div class="photo-card" data-id="${p.id}">
+            <img src="${p.url}" alt="${p.altText || ""}" />
+            <div class="meta">
+              <input class="caption" value="${p.caption.replace(/"/g, "&quot;")}" placeholder="Caption" />
+              <div class="actions">
+                <button type="button" class="btn btn-accent save-photo">Save</button>
+                <button type="button" class="btn btn-danger del-photo">Delete</button>
+              </div>
+            </div>
+          </div>`,
+          )
+          .join("");
+
+        grid.querySelectorAll(".save-photo").forEach((btn) =>
+          btn.addEventListener("click", async () => {
+            const card = btn.closest(".photo-card");
+            const caption = card.querySelector(".caption").value;
+            await api(`/api/gallery/photos/${card.dataset.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ caption, altText: caption }),
+            });
+            btn.textContent = "Saved";
+            setTimeout(() => (btn.textContent = "Save"), 1200);
+          }),
+        );
+        grid.querySelectorAll(".del-photo").forEach((btn) =>
+          btn.addEventListener("click", async () => {
+            const card = btn.closest(".photo-card");
+            if (!confirm("Delete this photo?")) return;
+            await api(`/api/gallery/photos/${card.dataset.id}`, { method: "DELETE" });
+            await loadPhotos();
+          }),
+        );
+      }
+
+      document.getElementById("create-album-btn").addEventListener("click", async () => {
+        const title = document.getElementById("new-album-title").value.trim();
+        if (!title) return;
+        await api("/api/gallery/albums", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        });
+        document.getElementById("new-album-title").value = "";
+        await loadAlbums();
+      });
+
+      document.getElementById("upload-input").addEventListener("change", async (e) => {
+        if (!activeAlbumId) return alert("Open a folder first");
+        for (const file of e.target.files) {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("albumId", activeAlbumId);
+          fd.append("caption", file.name.replace(/\.[^.]+$/, ""));
+          const res = await fetch("/api/gallery/upload", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok) alert(data.error || "Upload failed");
+        }
+        e.target.value = "";
+        await loadPhotos();
+      });
+
+      document.getElementById("logout-btn").addEventListener("click", async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        location.href = "/admin/";
+      });
+
+      (async () => {
+        if (await requireAuth()) await loadAlbums();
+      })();
+    </script>
+  </body>
+</html>

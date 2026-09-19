@@ -1,0 +1,36 @@
+#cms-toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 1rem;
+  background: #0f3a5f;
+  color: #fff;
+  font: 600 0.85rem/1.2 Inter, system-ui, sans-serif;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.2);
+}
+#cms-toolbar a,
+#cms-toolbar button {
+  background: #fdd85d;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+#cms-toolbar span { margin-right: auto; }
+body.cms-editing [data-block] {
+  outline: 2px dashed #fdd85d;
+  outline-offset: 3px;
+  cursor: text;
+}
+[data-block].cms-saving { opacity: 0.6; }
+[data-block].cms-saved { outline-color: #3d9a5f !important; }

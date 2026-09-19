@@ -1,0 +1,13 @@
+name = "mypainter-site"
+compatibility_date = "2026-04-16"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mypainter-quotes"
+database_id = "REPLACE_AFTER_CREATE"
+preview_database_id = "REPLACE_AFTER_CREATE"
+
+[[r2_buckets]]
+binding = "GALLERY"
+bucket_name = "mypainter-gallery"

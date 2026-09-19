@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyPainter Admin</title>
+    <link rel="stylesheet" href="/css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div class="admin-wrap">
+      <div class="admin-header">
+        <a href="/"><img src="/images/logo.png" alt="MyPainter" /></a>
+        <a href="/" class="btn btn-ghost">← Back to site</a>
+      </div>
+
+      <div id="login-view" class="admin-card login-box">
+        <h1>Admin login</h1>
+        <p id="login-msg" class="msg msg-error" hidden></p>
+        <form id="login-form">
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+          </div>
+          <button type="submit" class="btn btn-primary" id="login-btn">Log in</button>
+        </form>
+      </div>
+
+      <div id="dash-view" hidden>
+        <div class="admin-card">
+          <h1>MyPainter admin</h1>
+          <p>You’re logged in. Edit text on any public page, or manage the gallery here.</p>
+          <div class="btn-row">
+            <a href="/" class="btn btn-accent">Edit site pages →</a>
+            <a href="/admin/gallery.html" class="btn btn-primary">Manage gallery →</a>
+            <button type="button" class="btn btn-ghost" id="logout-btn">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      const loginView = document.getElementById("login-view");
+      const dashView = document.getElementById("dash-view");
+      const loginForm = document.getElementById("login-form");
+      const loginMsg = document.getElementById("login-msg");
+      const loginBtn = document.getElementById("login-btn");
+
+      async function checkAuth() {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.authenticated) {
+          loginView.hidden = true;
+          dashView.hidden = false;
+        }
+      }
+
+      loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        loginMsg.hidden = true;
+        loginBtn.disabled = true;
+        loginBtn.textContent = "Logging in…";
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: document.getElementById("password").value }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Login failed");
+          loginView.hidden = true;
+          dashView.hidden = false;
+        } catch (err) {
+          loginMsg.textContent = err.message;
+          loginMsg.hidden = false;
+        } finally {
+          loginBtn.disabled = false;
+          loginBtn.textContent = "Log in";
+        }
+      });
+
+      document.getElementById("logout-btn").addEventListener("click", async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        location.reload();
+      });
+
+      checkAuth();
+    </script>
+  </body>
+</html>

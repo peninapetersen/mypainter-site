@@ -15,8 +15,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/cms.css" />
   </head>
-  <body>
+  <body data-page="index">
     <header>
       <div class="container header-inner">
         <a href="/" class="logo" aria-label="mypainter.co.nz home"><img src="/images/logo.png" alt="mypainter.co.nz" width="200" height="46" decoding="async" /></a>
@@ -44,8 +45,8 @@
       <section class="hero">
         <div class="hero-inner container">
           <div>
-            <h1>Whangarei's Trusted Painter &amp; Handyman</h1>
-            <p class="subhead">
+            <h1 data-block="hero.h1">Whangarei's Trusted Painter &amp; Handyman</h1>
+            <p class="subhead" data-block="hero.subhead">
               Interior. Exterior. Roofs. Fences. Sheds. Handyman work. Done
               properly, done tidy, done fair. 25+ years on the tools.
             </p>
@@ -265,5 +266,6 @@
         <p>© 2026 MyPainter · Richard Petersen · Whangarei NZ</p>
       </div>
     </footer>
+    <script src="/js/cms.js" defer></script>
   </body>
 </html>
