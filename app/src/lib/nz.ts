@@ -27,3 +27,13 @@ export function formatDateLong(d: Date | string | null | undefined): string {
     year: "numeric",
   }).format(date);
 }
+
+export function formatDateShort(d: Date | string | null | undefined): { month: string; day: string } {
+  if (!d) return { month: "", day: "" };
+  const date = typeof d === "string" ? new Date(`${d}T12:00:00`) : d;
+  const parts = new Intl.DateTimeFormat("en-NZ", { month: "short", day: "numeric" }).formatToParts(date);
+  return {
+    month: parts.find((p) => p.type === "month")?.value ?? "",
+    day: parts.find((p) => p.type === "day")?.value ?? "",
+  };
+}

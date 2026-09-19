@@ -112,6 +112,25 @@ export type Quote = {
   updated_at: string;
 };
 
+export type JobVisit = {
+  title: string;
+  date: string;
+  scheduleLater: boolean;
+  startTime: string;
+  endTime: string;
+  anytime: boolean;
+  assignedTo: string;
+  instructions: string;
+  emailTeam: boolean;
+};
+
+export type JobBillingFlags = {
+  remindInvoiceOnClose: boolean;
+  splitPaymentSchedule: boolean;
+  discount?: number;
+  gstRegistered?: boolean;
+};
+
 export type Job = {
   id: string;
   user_id: string;
@@ -119,8 +138,8 @@ export type Job = {
   quote_id: string | null;
   number: string;
   title: string;
-  visits: unknown[];
-  billing_flags: Record<string, unknown>;
+  visits: JobVisit[];
+  billing_flags: JobBillingFlags;
   line_items: LineItem[];
   subtotal_cost: number;
   subtotal_price: number;

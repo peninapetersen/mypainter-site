@@ -1,12 +1,22 @@
 import { requireUserId } from "@/lib/auth";
 import { calcLineCost, calcLineSubtotal } from "@/lib/line-items";
 import { supabase } from "@/lib/supabase";
-import type { Job, LineItem } from "@/types/entities";
+import { defaultBillingFlags } from "@/lib/job-defaults";
+import type { Job, JobBillingFlags, JobVisit, LineItem } from "@/types/entities";
 
-async function nextJobNumber(): Promise<string> {
+async function nextJobNum(): Promise<number> {
   const user_id = await requireUserId();
   const { count } = await supabase.from("mp_jobs").select("*", { count: "exact", head: true }).eq("user_id", user_id);
-  const num = (count ?? 0) + 1;
+  return (count ?? 0) + 1;
+}
+
+export async function peekJobNumber(): Promise<string> {
+  const num = await nextJobNum();
+  return String(num);
+}
+
+async function nextJobNumber(): Promise<string> {
+  const num = await nextJobNum();
   return `JOB-${String(num).padStart(3, "0")}`;
 }
 
@@ -27,6 +37,8 @@ export async function createJob(input: {
   quote_id?: string | null;
   title?: string;
   line_items?: LineItem[];
+  visits?: JobVisit[];
+  billing_flags?: JobBillingFlags;
   status?: Job["status"];
   notes?: string;
 }): Promise<Job> {
@@ -41,6 +53,8 @@ export async function createJob(input: {
       quote_id: input.quote_id ?? null,
       number,
       title: input.title ?? "",
+      visits: input.visits ?? [],
+      billing_flags: input.billing_flags ?? defaultBillingFlags(),
       line_items,
       subtotal_cost: calcLineCost(line_items),
       subtotal_price: calcLineSubtotal(line_items),

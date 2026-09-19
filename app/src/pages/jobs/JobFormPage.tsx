@@ -1,16 +1,26 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { ChevronDown, Hammer } from "lucide-react";
 import { ClientSelect } from "@/components/forms/ClientSelect";
-import { LineItemsEditor } from "@/components/forms/LineItemsEditor";
+import { JobBillingSection } from "@/components/forms/JobBillingSection";
+import { JobLineItemsCard } from "@/components/forms/JobLineItemsCard";
+import { JobTotalsPanel } from "@/components/forms/JobTotalsPanel";
+import { JobVisitsSection } from "@/components/forms/JobVisitsSection";
+import { RequestNotesCard } from "@/components/forms/RequestNotesCard";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { calcLineCost, calcLineSubtotal } from "@/lib/line-items";
-import { formatCurrency } from "@/lib/nz";
-import { getQuote } from "@/lib/quotes";
-import { createJob, deleteJob, getJob, updateJob } from "@/lib/jobs";
+import {
+  defaultBillingFlags,
+  defaultJobVisit,
+  displayJobNumber,
+  parseBillingFlags,
+  parseVisits,
+} from "@/lib/job-defaults";
 import { createInvoice } from "@/lib/invoices";
-import type { LineItem } from "@/types/entities";
+import { createJob, deleteJob, getJob, peekJobNumber, updateJob } from "@/lib/jobs";
+import { getQuote } from "@/lib/quotes";
+import type { JobBillingFlags, JobVisit, LineItem } from "@/types/entities";
 
 export function JobFormPage() {
   const { id } = useParams();
@@ -21,11 +31,16 @@ export function JobFormPage() {
   const { clients } = useClientsMap();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [number, setNumber] = useState("");
+  const [previewNumber, setPreviewNumber] = useState("");
+  const [scheduleMode, setScheduleMode] = useState<"one-off" | "recurring">("one-off");
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [showTax, setShowTax] = useState(false);
   const [form, setForm] = useState({
     client_id: "",
     quote_id: "" as string | null,
     title: "",
+    visits: [defaultJobVisit()] as JobVisit[],
+    billing_flags: defaultBillingFlags() as JobBillingFlags,
     line_items: [] as LineItem[],
     status: "scheduled" as "scheduled" | "active" | "completed",
     notes: "",
@@ -35,18 +50,18 @@ export function JobFormPage() {
     async function load() {
       try {
         if (isNew) {
+          setPreviewNumber(await peekJobNumber());
           const fromQuote = search.get("fromQuote");
           if (fromQuote) {
             const q = await getQuote(fromQuote);
             if (q) {
-              setForm({
+              setForm((f) => ({
+                ...f,
                 client_id: q.client_id ?? "",
                 quote_id: q.id,
                 title: q.title,
-                line_items: q.line_items,
-                status: "scheduled",
-                notes: "",
-              });
+                line_items: q.line_items.map((li) => ({ ...li, unitCost: li.unitCost ?? 0 })),
+              }));
             }
           }
           setLoading(false);
@@ -54,11 +69,16 @@ export function JobFormPage() {
         }
         const j = await getJob(id!);
         if (!j) throw new Error("Job not found");
-        setNumber(j.number);
+        setPreviewNumber(displayJobNumber(j.number));
+        const flags = parseBillingFlags(j.billing_flags);
+        setShowDiscount(Number(flags.discount) > 0);
+        setShowTax(!!flags.gstRegistered);
         setForm({
           client_id: j.client_id ?? "",
           quote_id: j.quote_id,
           title: j.title,
+          visits: parseVisits(j.visits),
+          billing_flags: flags,
           line_items: j.line_items,
           status: j.status,
           notes: j.notes,
@@ -72,13 +92,25 @@ export function JobFormPage() {
     load();
   }, [id, isNew, search, showError]);
 
-  const price = calcLineSubtotal(form.line_items);
-  const cost = calcLineCost(form.line_items);
+  const subtotalPrice = calcLineSubtotal(form.line_items);
+  const subtotalCost = calcLineCost(form.line_items);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function persist() {
     setSaving(true);
-    const payload = { ...form, client_id: form.client_id || null, quote_id: form.quote_id || null };
+    const payload = {
+      client_id: form.client_id || null,
+      quote_id: form.quote_id || null,
+      title: form.title,
+      visits: form.visits,
+      billing_flags: {
+        ...form.billing_flags,
+        discount: form.billing_flags.discount ?? 0,
+        gstRegistered: form.billing_flags.gstRegistered || showTax,
+      },
+      line_items: form.line_items,
+      status: form.status,
+      notes: form.notes,
+    };
     try {
       if (isNew) {
         const j = await createJob(payload);
@@ -94,6 +126,11 @@ export function JobFormPage() {
     }
   }
 
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await persist();
+  }
+
   async function convertToInvoice() {
     setSaving(true);
     try {
@@ -101,7 +138,7 @@ export function JobFormPage() {
         client_id: form.client_id || null,
         job_id: id!,
         line_items: form.line_items,
-        gstRegistered: false,
+        gstRegistered: form.billing_flags.gstRegistered || showTax,
       });
       navigate(`/invoices/${inv.id}`);
     } catch (err) {
@@ -124,67 +161,116 @@ export function JobFormPage() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
   return (
-    <div>
-      <PageHeader
-        title={isNew ? "New job" : `Job ${number}`}
-        backTo="/jobs"
-        actions={
-          !isNew && (
-            <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
+    <div className="pb-24">
+      <div className="mb-6 flex items-start justify-between">
+        <Link to="/jobs" className="text-sm text-slate-500 hover:text-slate-800">
+          ← Back
+        </Link>
+        {!isNew && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={convertToInvoice}
+              disabled={saving}
+              className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white"
+            >
               → Create invoice
             </button>
-          )
-        }
-      />
-      <form onSubmit={onSubmit} className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2">
-            <label className="block text-sm font-semibold">
-              Client
-              <div className="mt-1">
-                <ClientSelect clients={clients} value={form.client_id} onChange={(v) => setForm({ ...form, client_id: v })} />
-              </div>
-            </label>
-            <label className="block text-sm font-semibold">
-              Title *
-              <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="block text-sm font-semibold">
-              Status
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })} className="mt-1 w-full rounded-lg border px-3 py-2">
-                <option value="scheduled">Scheduled</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-              </select>
-            </label>
-            <label className="block text-sm font-semibold">
-              Notes
-              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
+            <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
+              Delete
+            </button>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-6 h-fit">
-            <h2 className="mb-4 font-bold">Job totals</h2>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between"><dt>Cost</dt><dd>{formatCurrency(cost)}</dd></div>
-              <div className="flex justify-between border-t pt-2 text-lg font-bold"><dt>Price</dt><dd>{formatCurrency(price)}</dd></div>
-              <div className="flex justify-between text-green-700"><dt>Margin</dt><dd>{formatCurrency(price - cost)}</dd></div>
-            </dl>
+        )}
+      </div>
+
+      <div className="mb-6 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 text-[var(--mp-orange)]">
+          <Hammer size={22} />
+        </span>
+        <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New Job" : `Job ${previewNumber}`}</h1>
+      </div>
+
+      <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-6">
+        <input
+          placeholder="Title"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-[1fr_100px]">
+          <ClientSelect clients={clients} value={form.client_id} onChange={(v) => setForm({ ...form, client_id: v })} />
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Job #</label>
+            <input readOnly value={previewNumber} className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm" />
+            <p className="mt-1 text-xs text-slate-400">
+              Customize{" "}
+              <button type="button" className="font-semibold text-[var(--mp-orange)] underline" onClick={() => alert("Custom fields — Phase 5")}>
+                Add Field
+              </button>
+            </p>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="mb-4 font-bold">Line items</h2>
-          <LineItemsEditor items={form.line_items} onChange={(line_items) => setForm({ ...form, line_items })} showCost />
+
+        <JobVisitsSection
+          visits={form.visits}
+          scheduleMode={scheduleMode}
+          onScheduleModeChange={setScheduleMode}
+          onChange={(visits) => setForm({ ...form, visits })}
+        />
+
+        <JobBillingSection flags={form.billing_flags} onChange={(billing_flags) => setForm({ ...form, billing_flags })} />
+
+        <JobLineItemsCard items={form.line_items} onChange={(line_items) => setForm({ ...form, line_items })} />
+
+        <div className="flex justify-end">
+          <div className="w-full max-w-sm">
+            <JobTotalsPanel
+              subtotalPrice={subtotalPrice}
+              subtotalCost={subtotalCost}
+              discount={form.billing_flags.discount ?? 0}
+              gstRegistered={form.billing_flags.gstRegistered || showTax}
+              showDiscount={showDiscount || (form.billing_flags.discount ?? 0) > 0}
+              showTax={showTax || !!form.billing_flags.gstRegistered}
+              onToggleDiscount={() => setShowDiscount(true)}
+              onToggleTax={() => {
+                setShowTax(true);
+                setForm({ ...form, billing_flags: { ...form.billing_flags, gstRegistered: true } });
+              }}
+              onDiscountChange={(discount) => setForm({ ...form, billing_flags: { ...form.billing_flags, discount } })}
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button type="submit" disabled={saving} className="rounded-lg bg-[var(--mp-orange)] px-5 py-2 font-bold text-white disabled:opacity-60">
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <Link to="/jobs" className="rounded-lg border px-5 py-2 font-semibold">Cancel</Link>
-          {!isNew && (
-            <button type="button" onClick={onDelete} className="ml-auto text-sm text-red-600 hover:underline">Delete</button>
-          )}
-        </div>
+
+        <RequestNotesCard notes={form.notes} onChange={(notes) => setForm({ ...form, notes })} />
       </form>
+
+      <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-slate-200 bg-white px-4 py-3 md:left-56">
+        <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
+          <Link to="/jobs" className="rounded-lg border border-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-[var(--mp-orange)]">
+            Cancel
+          </Link>
+          <div className="flex overflow-hidden rounded-lg">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => persist()}
+              className="bg-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {saving ? "Saving…" : "Save Job"}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => persist()}
+              className="border-l border-orange-400 bg-[var(--mp-orange)] px-2 py-2 text-white"
+              aria-label="Save options"
+            >
+              <ChevronDown size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
