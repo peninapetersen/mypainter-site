@@ -193,11 +193,23 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .photo-card .edit-photo {
-        width: calc(100% - 1rem);
-        margin: 0 0.5rem 0.5rem;
-        font-size: 0.75rem;
-        padding: 0.4rem;
+      .photo-card .photo-actions {
+        display: flex;
+        gap: 0.35rem;
+        padding: 0 0.5rem 0.55rem;
+      }
+      .photo-card .photo-actions button {
+        flex: 1;
+        font-size: 0.72rem;
+        padding: 0.42rem 0.35rem;
+        cursor: pointer;
+      }
+      .photo-card .delete-photo {
+        background: #b42318;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
       }
       /* Upload progress — green line top of screen */
       #upload-progress {
@@ -618,12 +630,17 @@
         await loadPhotos();
       }
 
-      async function deleteEditModal() {
-        if (!editingPhotoId || !confirm("Delete this photo?")) return;
-        await api(`/api/gallery/photos/${editingPhotoId}`, { method: "DELETE" });
-        closeEditModal();
+      async function deletePhoto(photoId) {
+        if (!photoId || !confirm("Delete this photo? This cannot be undone.")) return;
+        await api(`/api/gallery/photos/${photoId}`, { method: "DELETE" });
+        if (editingPhotoId === photoId) closeEditModal();
         await loadAlbums();
-        await loadPhotos();
+        if (activeAlbumId) await loadPhotos();
+      }
+
+      async function deleteEditModal() {
+        if (!editingPhotoId) return;
+        await deletePhoto(editingPhotoId);
       }
 
       async function uploadFiles(fileList, albumId) {
@@ -670,14 +687,17 @@
               <img src="${esc(p.url)}" alt="${esc(p.altText)}" draggable="false" />
             </button>
             <div class="caption-preview">${esc(p.caption) || "Untitled"}</div>
-            <button type="button" class="btn btn-accent edit-photo edit-open">Edit / rename</button>
+            <div class="photo-actions">
+              <button type="button" class="btn btn-accent edit-open">Edit</button>
+              <button type="button" class="btn delete-photo del-photo">Delete</button>
+            </div>
           </div>`,
           )
           .join("");
 
         grid.querySelectorAll(".photo-card").forEach((card) => {
           card.addEventListener("dragstart", (e) => {
-            if (e.target.closest(".edit-open, .thumb-btn")) {
+            if (e.target.closest(".edit-open, .thumb-btn, .del-photo, .photo-actions")) {
               e.preventDefault();
               return;
             }
@@ -702,6 +722,12 @@
           btn.addEventListener("click", () => {
             const photo = currentPhotos.find((p) => p.id === btn.closest(".photo-card").dataset.id);
             if (photo) openEditModal(photo);
+          }),
+        );
+        grid.querySelectorAll(".del-photo").forEach((btn) =>
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deletePhoto(btn.closest(".photo-card").dataset.id).catch((err) => alert(err.message));
           }),
         );
 
