@@ -211,22 +211,19 @@
         border-radius: 8px;
         font-weight: 700;
       }
-      /* Upload progress — green line top of screen */
+      /* Upload progress — inline below heading, above file picker */
       #upload-progress {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 10000;
-        background: #fff;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-        transform: translateY(-100%);
-        transition: transform 0.2s ease;
+        display: none;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #b8dfc8;
+        background: #f0faf4;
       }
-      #upload-progress.visible { transform: translateY(0); }
+      #upload-progress.visible { display: block; }
       #upload-progress-bar-wrap {
-        height: 5px;
-        background: #e8e8e8;
+        height: 6px;
+        background: #dceee3;
       }
       #upload-progress-bar {
         height: 100%;
@@ -235,7 +232,7 @@
         transition: width 0.25s ease;
       }
       #upload-progress-text {
-        padding: 0.55rem 1rem;
+        padding: 0.65rem 1rem;
         font-size: 0.85rem;
         font-weight: 700;
         color: #0d5c2e;
@@ -322,6 +319,10 @@
 
         <div class="admin-card" id="photos-panel" hidden>
           <h2 id="photos-title">Photos</h2>
+          <div id="upload-progress" aria-live="polite" aria-hidden="true">
+            <div id="upload-progress-bar-wrap"><div id="upload-progress-bar"></div></div>
+            <div id="upload-progress-text">Uploading…</div>
+          </div>
           <div class="field">
             <label>Upload photos</label>
             <input type="file" id="upload-input" accept="image/*,.heic,.heif" multiple />
@@ -329,11 +330,6 @@
           <div id="photo-grid" class="photo-grid"></div>
         </div>
       </div>
-    </div>
-
-    <div id="upload-progress" aria-live="polite" aria-hidden="true">
-      <div id="upload-progress-bar-wrap"><div id="upload-progress-bar"></div></div>
-      <div id="upload-progress-text">Uploading…</div>
     </div>
 
     <div id="edit-modal" class="modal-backdrop" hidden>
