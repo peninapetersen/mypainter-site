@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Wallet } from "lucide-react";
 import { ExpenseMaterialPicker } from "@/components/forms/ExpenseMaterialPicker";
 import { ExpenseReceiptScan } from "@/components/forms/ExpenseReceiptScan";
+import { SupplierSelect } from "@/components/forms/SupplierSelect";
 import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import {
@@ -27,7 +28,18 @@ import { getQuote, listQuotes } from "@/lib/quotes";
 import { todayIsoDate } from "@/lib/line-items";
 import { formatCurrency } from "@/lib/nz";
 import { getReceiptImageUrl, uploadReceiptImage } from "@/lib/receipt-images";
-import type { AccountCode, Expense, ExpenseCategory, Invoice, Job, Quote, ReceiptScanResult } from "@/types/entities";
+import { listSuppliers, supplierDisplayName } from "@/lib/suppliers";
+import type { AccountCode, Expense, ExpenseCategory, Invoice, Job, Quote, ReceiptScanResult, Supplier } from "@/types/entities";
+
+function matchSupplierByMerchant(merchant: string, suppliers: Supplier[]): string {
+  const norm = merchant.trim().toLowerCase();
+  if (!norm) return "";
+  for (const s of suppliers) {
+    const names = [supplierDisplayName(s), s.company_name, s.name].filter(Boolean).map((n) => n.toLowerCase());
+    if (names.some((n) => n.length >= 3 && (norm.includes(n) || n.includes(norm)))) return s.id;
+  }
+  return "";
+}
 
 export function ExpenseFormPage() {
   const { id } = useParams();
@@ -46,11 +58,13 @@ export function ExpenseFormPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenseCodes, setExpenseCodes] = useState<AccountCode[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [form, setForm] = useState({
     job_id: search.get("fromJob") ?? "",
     quote_id: search.get("fromQuote") ?? "",
     jobs_on_id: search.get("fromJobsOn") ?? "",
     invoice_id: search.get("fromInvoice") ?? "",
+    supplier_id: "",
     item_name: "",
     description: "",
     merchant: "",
@@ -66,12 +80,13 @@ export function ExpenseFormPage() {
   });
 
   useEffect(() => {
-    Promise.all([listJobs(), listQuotes(), listInvoices(), listAccountCodes({ section: "expenses" })])
-      .then(([j, q, inv, codes]) => {
+    Promise.all([listJobs(), listQuotes(), listInvoices(), listAccountCodes({ section: "expenses" }), listSuppliers()])
+      .then(([j, q, inv, codes, sups]) => {
         setJobs(j);
         setQuotes(q);
         setInvoices(inv);
         setExpenseCodes(codes);
+        setSuppliers(sups);
       })
       .catch(() => {});
   }, []);
@@ -136,7 +151,9 @@ export function ExpenseFormPage() {
         setForm({
           job_id: e.job_id ?? "",
           quote_id: e.quote_id ?? "",
+          jobs_on_id: e.jobs_on_id ?? "",
           invoice_id: e.invoice_id ?? "",
+          supplier_id: e.supplier_id ?? "",
           item_name: e.item_name,
           description: e.description,
           merchant: e.merchant,
@@ -161,17 +178,39 @@ export function ExpenseFormPage() {
       .finally(() => setLoading(false));
   }, [id, isNew, showError]);
 
+  function applySupplier(supplierId: string) {
+    const supplier = suppliers.find((s) => s.id === supplierId);
+    if (!supplier) {
+      setForm((f) => ({ ...f, supplier_id: "" }));
+      return;
+    }
+    const code = supplier.default_account_code || supplier.account_code;
+    setForm((f) => ({
+      ...f,
+      supplier_id: supplierId,
+      merchant: supplierDisplayName(supplier),
+      ...(code ? { accounting_code: code } : {}),
+    }));
+  }
+
   function applyScan(file: File, scan: ReceiptScanResult, raw: Record<string, unknown>) {
     setReceiptFile(file);
     setReceiptPreview(URL.createObjectURL(file));
     setScanned(true);
     setManualEntry(false);
+    const matchedSupplierId = matchSupplierByMerchant(scan.merchant, suppliers);
+    const matched = matchedSupplierId ? suppliers.find((s) => s.id === matchedSupplierId) : null;
     setForm((f) => ({
       ...f,
       ...expenseFromScan(scan, f.receipt_path, raw),
       job_id: f.job_id,
       quote_id: f.quote_id,
+      jobs_on_id: f.jobs_on_id,
       invoice_id: f.invoice_id,
+      supplier_id: matchedSupplierId || f.supplier_id,
+      ...(matched && (matched.default_account_code || matched.account_code)
+        ? { accounting_code: matched.default_account_code || matched.account_code }
+        : {}),
     }));
   }
 
@@ -224,6 +263,7 @@ export function ExpenseFormPage() {
         quote_id: form.quote_id || null,
         jobs_on_id: form.jobs_on_id || null,
         invoice_id: form.invoice_id || null,
+        supplier_id: form.supplier_id || null,
         amount: Number(form.amount),
         gst_amount: Number(form.gst_amount),
       };
@@ -397,6 +437,16 @@ export function ExpenseFormPage() {
               />
             </label>
 
+            <SupplierSelect
+              suppliers={suppliers}
+              value={form.supplier_id}
+              onChange={applySupplier}
+              returnTo={isNew ? "/expenses/new" : `/expenses/${id}`}
+            />
+            <p className="-mt-3 text-xs text-slate-500">
+              Link paint shops and suppliers — fills merchant and expense code from their record.
+            </p>
+
             <label className="block text-sm">
               <span className="mb-1 block text-xs font-semibold text-slate-500">Total</span>
               <input
@@ -516,7 +566,9 @@ export function ExpenseFormPage() {
               </select>
             </label>
 
-            {form.merchant && <p className="text-xs text-slate-500">Merchant: {form.merchant}</p>}
+            {form.merchant && !form.supplier_id && (
+              <p className="text-xs text-slate-500">Merchant (from receipt): {form.merchant}</p>
+            )}
           </>
         )}
       </form>

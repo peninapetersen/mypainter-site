@@ -18,6 +18,7 @@ const OPTIONAL_EXPENSE_COLUMNS = [
   "quote_id",
   "jobs_on_id",
   "invoice_id",
+  "supplier_id",
   "item_name",
   "merchant",
   "gst_amount",
@@ -100,6 +101,7 @@ export async function createExpense(input: {
   quote_id?: string | null;
   jobs_on_id?: string | null;
   invoice_id?: string | null;
+  supplier_id?: string | null;
   item_name?: string;
   description?: string;
   merchant?: string;
@@ -121,6 +123,7 @@ export async function createExpense(input: {
     quote_id: input.quote_id ?? null,
     jobs_on_id: input.jobs_on_id ?? null,
     invoice_id: input.invoice_id ?? null,
+    supplier_id: input.supplier_id ?? null,
     item_name: input.item_name ?? "",
     description: input.description ?? "",
     merchant: input.merchant ?? "",
@@ -154,6 +157,7 @@ export async function deleteExpense(id: string): Promise<void> {
 
 export function expenseFromScan(scan: ReceiptScanResult, receipt_path: string, ai_raw: Record<string, unknown>): Omit<Expense, "id" | "user_id" | "job_id" | "created_at" | "updated_at"> {
   return {
+    supplier_id: null,
     item_name: scan.item_name,
     description: scan.description,
     merchant: scan.merchant,

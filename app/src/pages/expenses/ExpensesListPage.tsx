@@ -1,26 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Avatar } from "@/components/ui/Avatar";
 import { ListEntryLink } from "@/components/ui/ListEntryLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { EXPENSE_CATEGORIES, deleteExpense, listExpenses } from "@/lib/expenses";
 import { formatCurrency, formatDate } from "@/lib/nz";
+import { listSuppliers, supplierDisplayName } from "@/lib/suppliers";
 import { formatSupabaseError } from "@/lib/supabase-errors";
-import type { Expense } from "@/types/entities";
+import type { Expense, Supplier } from "@/types/entities";
 
 const categoryLabel = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
 
 export function ExpensesListPage() {
   const { showError } = useErrorBanner();
   const [rows, setRows] = useState<Expense[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const supplierMap = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
+
   useEffect(() => {
-    listExpenses()
-      .then(setRows)
+    Promise.all([listExpenses(), listSuppliers()])
+      .then(([expenses, sups]) => {
+        setRows(expenses);
+        setSuppliers(sups);
+      })
       .catch((e) => showError(e.message))
       .finally(() => setLoading(false));
   }, [showError]);
@@ -64,9 +72,10 @@ export function ExpensesListPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
+                <th className="w-12 px-3 py-3" aria-label="Supplier" />
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Item</th>
-                <th className="hidden px-4 py-3 sm:table-cell">Merchant</th>
+                <th className="hidden px-4 py-3 sm:table-cell">Supplier</th>
                 <th className="px-4 py-3">Total</th>
                 <th className="hidden px-4 py-3 md:table-cell">GST</th>
                 <th className="hidden px-4 py-3 lg:table-cell">Category</th>
@@ -74,25 +83,36 @@ export function ExpensesListPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-3">{formatDate(r.expense_date) || "—"}</td>
-                  <td className="px-4 py-3">
-                    <ListEntryLink to={`/expenses/${r.id}`}>{r.item_name || "Receipt"}</ListEntryLink>
-                  </td>
-                  <td className="hidden px-4 py-3 sm:table-cell">{r.merchant || "—"}</td>
-                  <td className="px-4 py-3">{formatCurrency(r.amount)}</td>
-                  <td className="hidden px-4 py-3 md:table-cell">{formatCurrency(r.gst_amount)}</td>
-                  <td className="hidden px-4 py-3 lg:table-cell text-xs text-slate-500">{categoryLabel[r.category] ?? r.category}</td>
-                  <td className="px-4 py-3 text-right">
-                    <ListDeleteButton
-                      label={r.item_name || r.merchant || "expense"}
-                      deleting={deletingId === r.id}
-                      onDelete={() => removeExpense(r)}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const supplier = r.supplier_id ? supplierMap.get(r.supplier_id) : null;
+                const supplierLabel = supplier ? supplierDisplayName(supplier) : r.merchant || "—";
+                return (
+                  <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50">
+                    <td className="px-3 py-3">
+                      {supplier ? (
+                        <Avatar photoPath={supplier.logo_path} name={supplierLabel} size={32} rounded="lg" />
+                      ) : (
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{formatDate(r.expense_date) || "—"}</td>
+                    <td className="px-4 py-3">
+                      <ListEntryLink to={`/expenses/${r.id}`}>{r.item_name || "Receipt"}</ListEntryLink>
+                    </td>
+                    <td className="hidden px-4 py-3 sm:table-cell">{supplierLabel}</td>
+                    <td className="px-4 py-3">{formatCurrency(r.amount)}</td>
+                    <td className="hidden px-4 py-3 md:table-cell">{formatCurrency(r.gst_amount)}</td>
+                    <td className="hidden px-4 py-3 lg:table-cell text-xs text-slate-500">{categoryLabel[r.category] ?? r.category}</td>
+                    <td className="px-4 py-3 text-right">
+                      <ListDeleteButton
+                        label={r.item_name || r.merchant || "expense"}
+                        deleting={deletingId === r.id}
+                        onDelete={() => removeExpense(r)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

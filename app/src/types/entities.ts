@@ -343,6 +343,7 @@ export type Expense = {
   quote_id: string | null;
   jobs_on_id: string | null;
   invoice_id: string | null;
+  supplier_id: string | null;
   item_name: string;
   description: string;
   merchant: string;
