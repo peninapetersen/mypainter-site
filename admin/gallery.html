@@ -92,6 +92,110 @@
       .photo-card .actions button { flex: 1; font-size: 0.75rem; padding: 0.35rem; cursor: pointer; }
       body.is-dragging .album-row { cursor: grabbing; }
       body.is-dragging-files .album-row:not(.drag-over) { cursor: copy; }
+      .photo-card .thumb-btn {
+        border: none;
+        padding: 0;
+        margin: 0;
+        background: none;
+        display: block;
+        width: 100%;
+        cursor: pointer;
+      }
+      .photo-card .thumb-btn:hover img { opacity: 0.92; }
+      .photo-card .caption-preview {
+        padding: 0.45rem 0.5rem 0.55rem;
+        font-size: 0.8rem;
+        line-height: 1.3;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .photo-card .edit-photo {
+        width: calc(100% - 1rem);
+        margin: 0 0.5rem 0.5rem;
+        font-size: 0.75rem;
+        padding: 0.4rem;
+      }
+      /* Upload progress — green line top of screen */
+      #upload-progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000;
+        background: #fff;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+        transform: translateY(-100%);
+        transition: transform 0.2s ease;
+      }
+      #upload-progress.visible { transform: translateY(0); }
+      #upload-progress-bar-wrap {
+        height: 5px;
+        background: #e8e8e8;
+      }
+      #upload-progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #22a06b, #3d9a5f);
+        transition: width 0.25s ease;
+      }
+      #upload-progress-text {
+        padding: 0.55rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #0d5c2e;
+      }
+      /* Edit photo modal */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .modal-backdrop[hidden] { display: none; }
+      .modal-box {
+        background: #fff;
+        border-radius: 12px;
+        max-width: 720px;
+        width: 100%;
+        max-height: 92vh;
+        overflow: auto;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+      }
+      .modal-box header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #eee;
+      }
+      .modal-box header h2 { margin: 0; font-size: 1.15rem; }
+      .modal-close {
+        border: none;
+        background: #f3efe6;
+        border-radius: 8px;
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 1.25rem;
+        cursor: pointer;
+        line-height: 1;
+      }
+      .modal-body { padding: 1.25rem; }
+      .modal-preview {
+        width: 100%;
+        max-height: 55vh;
+        object-fit: contain;
+        background: #f3efe6;
+        border-radius: 8px;
+        display: block;
+        margin-bottom: 1rem;
+      }
+      .modal-body .field textarea { min-height: 72px; }
     </style>
   </head>
   <body class="admin-body">
@@ -132,10 +236,43 @@
         </div>
       </div>
     </div>
+
+    <div id="upload-progress" aria-live="polite" aria-hidden="true">
+      <div id="upload-progress-bar-wrap"><div id="upload-progress-bar"></div></div>
+      <div id="upload-progress-text">Uploading…</div>
+    </div>
+
+    <div id="edit-modal" class="modal-backdrop" hidden>
+      <div class="modal-box" role="dialog" aria-labelledby="edit-modal-title">
+        <header>
+          <h2 id="edit-modal-title">Edit photo</h2>
+          <button type="button" class="modal-close" id="edit-modal-close" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body">
+          <img id="edit-modal-img" class="modal-preview" alt="" />
+          <div class="field">
+            <label for="edit-modal-caption">Caption / job name</label>
+            <textarea id="edit-modal-caption" rows="2" placeholder="e.g. Exterior Repaint — Kamo"></textarea>
+          </div>
+          <div class="field">
+            <label for="edit-modal-alt">Alt text (accessibility)</label>
+            <input id="edit-modal-alt" type="text" placeholder="Describe the photo briefly" />
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="edit-modal-save">Save</button>
+            <button type="button" class="btn btn-danger" id="edit-modal-delete">Delete</button>
+            <button type="button" class="btn btn-ghost" id="edit-modal-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
       let albums = [];
       let activeAlbumId = null;
       let dragPhotoId = null;
+      let currentPhotos = [];
+      let editingPhotoId = null;
 
       function esc(s) {
         return String(s || "")
@@ -312,44 +449,111 @@
         if (activeAlbumId) await loadPhotos();
       }
 
+      function showUploadProgress(current, total, fileName) {
+        const el = document.getElementById("upload-progress");
+        const bar = document.getElementById("upload-progress-bar");
+        const text = document.getElementById("upload-progress-text");
+        const pct = total ? Math.round((current / total) * 100) : 0;
+        el.classList.add("visible");
+        el.setAttribute("aria-hidden", "false");
+        bar.style.width = `${pct}%`;
+        text.textContent = current >= total
+          ? `Done — ${total} photo${total === 1 ? "" : "s"} uploaded ✓`
+          : `Uploading ${current}/${total}… ${fileName || ""}`;
+      }
+
+      function hideUploadProgress(delayMs = 1800) {
+        setTimeout(() => {
+          const el = document.getElementById("upload-progress");
+          el.classList.remove("visible");
+          el.setAttribute("aria-hidden", "true");
+          document.getElementById("upload-progress-bar").style.width = "0%";
+        }, delayMs);
+      }
+
+      function openEditModal(photo) {
+        editingPhotoId = photo.id;
+        document.getElementById("edit-modal-img").src = photo.url;
+        document.getElementById("edit-modal-img").alt = photo.altText || photo.caption || "";
+        document.getElementById("edit-modal-caption").value = photo.caption || "";
+        document.getElementById("edit-modal-alt").value = photo.altText || photo.caption || "";
+        document.getElementById("edit-modal").hidden = false;
+        document.getElementById("edit-modal-caption").focus();
+      }
+
+      function closeEditModal() {
+        editingPhotoId = null;
+        document.getElementById("edit-modal").hidden = true;
+      }
+
+      async function saveEditModal() {
+        if (!editingPhotoId) return;
+        const caption = document.getElementById("edit-modal-caption").value.trim();
+        const altText = document.getElementById("edit-modal-alt").value.trim() || caption;
+        await api(`/api/gallery/photos/${editingPhotoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caption, altText }),
+        });
+        closeEditModal();
+        await loadPhotos();
+      }
+
+      async function deleteEditModal() {
+        if (!editingPhotoId || !confirm("Delete this photo?")) return;
+        await api(`/api/gallery/photos/${editingPhotoId}`, { method: "DELETE" });
+        closeEditModal();
+        await loadPhotos();
+      }
+
       async function uploadFiles(fileList, albumId) {
         if (!albumId) throw new Error("Pick a folder first");
-        for (const file of fileList) {
-          if (!file.type.startsWith("image/")) continue;
+        const files = [...fileList].filter((f) => f.type.startsWith("image/"));
+        if (!files.length) throw new Error("No image files found");
+        const total = files.length;
+        let lastUploaded = null;
+
+        showUploadProgress(0, total, files[0].name);
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          showUploadProgress(i, total, file.name);
           const fd = new FormData();
           fd.append("file", file);
           fd.append("albumId", albumId);
-          fd.append("caption", file.name.replace(/\.[^.]+$/, ""));
+          fd.append("caption", file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "));
           const res = await fetch("/api/gallery/upload", { method: "POST", body: fd });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Upload failed");
+          lastUploaded = data.photo;
+          showUploadProgress(i + 1, total, file.name);
         }
+
+        hideUploadProgress();
         if (activeAlbumId === albumId) await loadPhotos();
+        if (lastUploaded && total === 1) openEditModal(lastUploaded);
       }
 
       async function loadPhotos() {
         const data = await api(`/api/gallery/photos?albumId=${activeAlbumId}`);
+        currentPhotos = data.photos || [];
         const grid = document.getElementById("photo-grid");
-        grid.innerHTML = (data.photos || [])
+        grid.innerHTML = currentPhotos
           .map(
             (p) => `
           <div class="photo-card" data-id="${p.id}" draggable="true">
             <div class="drag-handle">Drag to folder</div>
-            <img src="${esc(p.url)}" alt="${esc(p.altText)}" draggable="false" />
-            <div class="meta">
-              <input class="caption" value="${esc(p.caption)}" placeholder="Caption" />
-              <div class="actions">
-                <button type="button" class="btn btn-accent save-photo">Save</button>
-                <button type="button" class="btn btn-danger del-photo">Delete</button>
-              </div>
-            </div>
+            <button type="button" class="thumb-btn edit-open" aria-label="Edit photo">
+              <img src="${esc(p.url)}" alt="${esc(p.altText)}" draggable="false" />
+            </button>
+            <div class="caption-preview">${esc(p.caption) || "Untitled"}</div>
+            <button type="button" class="btn btn-accent edit-photo edit-open">Edit / rename</button>
           </div>`,
           )
           .join("");
 
         grid.querySelectorAll(".photo-card").forEach((card) => {
           card.addEventListener("dragstart", (e) => {
-            if (e.target.closest("input, button")) {
+            if (e.target.closest(".edit-open, .thumb-btn")) {
               e.preventDefault();
               return;
             }
@@ -370,25 +574,10 @@
           });
         });
 
-        grid.querySelectorAll(".save-photo").forEach((btn) =>
-          btn.addEventListener("click", async () => {
-            const card = btn.closest(".photo-card");
-            const caption = card.querySelector(".caption").value;
-            await api(`/api/gallery/photos/${card.dataset.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ caption, altText: caption }),
-            });
-            btn.textContent = "Saved";
-            setTimeout(() => (btn.textContent = "Save"), 1200);
-          }),
-        );
-        grid.querySelectorAll(".del-photo").forEach((btn) =>
-          btn.addEventListener("click", async () => {
-            const card = btn.closest(".photo-card");
-            if (!confirm("Delete this photo?")) return;
-            await api(`/api/gallery/photos/${card.dataset.id}`, { method: "DELETE" });
-            await loadPhotos();
+        grid.querySelectorAll(".edit-open").forEach((btn) =>
+          btn.addEventListener("click", () => {
+            const photo = currentPhotos.find((p) => p.id === btn.closest(".photo-card").dataset.id);
+            if (photo) openEditModal(photo);
           }),
         );
 
@@ -420,6 +609,21 @@
       document.getElementById("logout-btn").addEventListener("click", async () => {
         await fetch("/api/auth/logout", { method: "POST" });
         location.href = "/admin/";
+      });
+
+      document.getElementById("edit-modal-close").addEventListener("click", closeEditModal);
+      document.getElementById("edit-modal-cancel").addEventListener("click", closeEditModal);
+      document.getElementById("edit-modal-save").addEventListener("click", () =>
+        saveEditModal().catch((err) => alert(err.message)),
+      );
+      document.getElementById("edit-modal-delete").addEventListener("click", () =>
+        deleteEditModal().catch((err) => alert(err.message)),
+      );
+      document.getElementById("edit-modal").addEventListener("click", (e) => {
+        if (e.target.id === "edit-modal") closeEditModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !document.getElementById("edit-modal").hidden) closeEditModal();
       });
 
       (async () => {
