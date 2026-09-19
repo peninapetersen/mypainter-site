@@ -24,6 +24,7 @@ export function ClientsListPage() {
     <div>
       <PageHeader
         title="Clients"
+        backTo="/clients"
         actions={
           <Link to="/clients/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New client

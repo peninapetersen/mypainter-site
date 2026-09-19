@@ -30,11 +30,11 @@ export function HomePage() {
   }, []);
 
   const cards = [
-    { label: "Clients", value: stats.clients, to: "/clients" },
-    { label: "Open requests", value: stats.requests, to: "/requests" },
-    { label: "Quotes out", value: stats.quotes, to: "/quotes" },
-    { label: "Active jobs", value: stats.jobs, to: "/jobs" },
-    { label: "Unpaid invoices", value: stats.invoices, to: "/invoices" },
+    { label: "Clients", value: stats.clients, to: "/clients/list" },
+    { label: "Open requests", value: stats.requests, to: "/requests/list" },
+    { label: "Quotes out", value: stats.quotes, to: "/quotes/list" },
+    { label: "Active jobs", value: stats.jobs, to: "/jobs/list" },
+    { label: "Unpaid invoices", value: stats.invoices, to: "/invoices/list" },
   ];
 
   return (
@@ -53,13 +53,13 @@ export function HomePage() {
         ))}
       </div>
       <div className="mt-8 flex flex-wrap gap-3">
-        <Link to="/clients/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
+        <Link to="/clients" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
           + New client
         </Link>
-        <Link to="/requests/new" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">
+        <Link to="/requests" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">
           + New request
         </Link>
-        <Link to="/quotes/new" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">
+        <Link to="/quotes" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">
           + New quote
         </Link>
       </div>

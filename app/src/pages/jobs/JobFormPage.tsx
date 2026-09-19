@@ -85,7 +85,7 @@ export function JobFormPage() {
         navigate(`/jobs/${j.id}`);
       } else {
         await updateJob(id!, payload);
-        navigate("/jobs");
+        navigate("/jobs/list");
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Save failed");

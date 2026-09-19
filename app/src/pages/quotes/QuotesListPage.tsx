@@ -26,6 +26,7 @@ export function QuotesListPage() {
     <div>
       <PageHeader
         title="Quotes"
+        backTo="/quotes"
         actions={
           <Link to="/quotes/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New quote

@@ -26,6 +26,7 @@ export function RequestsListPage() {
     <div>
       <PageHeader
         title="Requests"
+        backTo="/requests"
         actions={
           <Link to="/requests/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New request

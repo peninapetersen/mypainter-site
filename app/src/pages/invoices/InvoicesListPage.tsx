@@ -26,6 +26,7 @@ export function InvoicesListPage() {
     <div>
       <PageHeader
         title="Invoices"
+        backTo="/invoices"
         actions={
           <Link to="/invoices/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New invoice

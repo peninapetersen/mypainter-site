@@ -143,7 +143,7 @@ export function ClientFormPage() {
     if (!confirm("Delete this client?")) return;
     try {
       await deleteClient(id!);
-      navigate("/clients");
+        navigate("/clients/list");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Delete failed");
     }

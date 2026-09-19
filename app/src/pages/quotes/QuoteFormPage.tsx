@@ -100,7 +100,7 @@ export function QuoteFormPage() {
         navigate(`/quotes/${q.id}`);
       } else {
         await updateQuote(id!, payload);
-        navigate("/quotes");
+        navigate("/quotes/list");
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Save failed");
@@ -144,7 +144,7 @@ export function QuoteFormPage() {
     <div>
       <PageHeader
         title={isNew ? "New quote" : `Quote ${number}`}
-        backTo="/quotes"
+        backTo="/quotes/list"
         actions={
           !isNew && (
             <button type="button" onClick={convertToJob} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">

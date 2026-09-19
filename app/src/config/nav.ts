@@ -45,9 +45,9 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const NEW_MENU_LINKS = [
-  { label: "Client", path: "/clients/new" },
-  { label: "Request", path: "/requests/new" },
-  { label: "Quote", path: "/quotes/new" },
-  { label: "Job", path: "/jobs/new" },
-  { label: "Invoice", path: "/invoices/new" },
+  { label: "Client", path: "/clients" },
+  { label: "Request", path: "/requests" },
+  { label: "Quote", path: "/quotes" },
+  { label: "Job", path: "/jobs" },
+  { label: "Invoice", path: "/invoices" },
 ];

@@ -94,7 +94,7 @@ export function InvoiceFormPage() {
         navigate(`/invoices/${inv.id}`);
       } else {
         await updateInvoice(id!, payload);
-        navigate("/invoices");
+        navigate("/invoices/list");
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Save failed");

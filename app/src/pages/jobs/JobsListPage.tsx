@@ -26,6 +26,7 @@ export function JobsListPage() {
     <div>
       <PageHeader
         title="Jobs"
+        backTo="/jobs"
         actions={
           <Link to="/jobs/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New job

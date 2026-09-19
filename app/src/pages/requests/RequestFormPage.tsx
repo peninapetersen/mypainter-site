@@ -71,7 +71,7 @@ export function RequestFormPage() {
         navigate(`/requests/${r.id}`);
       } else {
         await updateRequest(id!, payload);
-        navigate("/requests");
+        navigate("/requests/list");
       }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Save failed");
@@ -119,7 +119,7 @@ export function RequestFormPage() {
       <div className="mb-6 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link to="/requests" className="text-sm text-slate-500 hover:text-slate-800">
-            ← Back
+            ← Back to start
           </Link>
         </div>
         {!isNew && (
