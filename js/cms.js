@@ -5,6 +5,26 @@
   let isAdmin = false;
   let editMode = false;
   let toolbar = null;
+  let galleryAlbums = [];
+  let activeGalleryFilter = "all";
+
+  const GALLERY_PASTELS = [
+    "#fdd85d",
+    "#9ef4ff",
+    "#f5d0e8",
+    "#c8f0e4",
+    "#ffe6a8",
+    "#bfe4ec",
+    "#ffd6a5",
+    "#d4c4fb",
+  ];
+
+  function esc(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+  }
 
   async function checkAdmin() {
     try {
@@ -78,6 +98,64 @@
     });
   }
 
+  function renderGalleryFilters() {
+    const filters = document.getElementById("gallery-filters");
+    if (!filters) return;
+
+    const published = galleryAlbums.filter((a) => a.published !== false);
+    if (!published.length) {
+      filters.hidden = true;
+      return;
+    }
+
+    filters.hidden = false;
+    const allActive = activeGalleryFilter === "all" ? " active" : "";
+    let html = `<button type="button" class="gallery-filter-pill gallery-filter-pill--all${allActive}" data-album="all">All photos</button>`;
+
+    published.forEach((album, i) => {
+      const bg = GALLERY_PASTELS[i % GALLERY_PASTELS.length];
+      const active = activeGalleryFilter === album.id ? " active" : "";
+      html += `<button type="button" class="gallery-filter-pill${active}" data-album="${esc(album.id)}" style="background:${bg}">${esc(album.title)}</button>`;
+    });
+
+    filters.innerHTML = html;
+    filters.querySelectorAll(".gallery-filter-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeGalleryFilter = btn.dataset.album;
+        renderGalleryFilters();
+        renderGalleryGrid();
+      });
+    });
+  }
+
+  function renderGalleryGrid() {
+    const grid = document.getElementById("gallery-grid");
+    if (!grid) return;
+
+    let items = galleryAlbums.flatMap((album) =>
+      (album.photos || []).map((p) => ({ ...p, albumId: album.id })),
+    );
+
+    if (activeGalleryFilter !== "all") {
+      items = items.filter((p) => p.albumId === activeGalleryFilter);
+    }
+
+    if (!items.length) {
+      grid.innerHTML = `<p class="gallery-empty">No photos in this folder yet.</p>`;
+      return;
+    }
+
+    grid.innerHTML = items
+      .map(
+        (p) => `
+        <figure class="gallery-item" data-album-id="${esc(p.albumId)}">
+          <img src="${esc(p.url)}" alt="${esc(p.altText || p.caption)}" width="1000" height="1333" loading="lazy" />
+          <figcaption>${esc(p.caption)}</figcaption>
+        </figure>`,
+      )
+      .join("");
+  }
+
   async function loadGallery() {
     const grid = document.getElementById("gallery-grid");
     if (!grid) return;
@@ -85,17 +163,9 @@
       const res = await fetch("/api/public/gallery");
       const data = await res.json();
       if (!data.albums?.length) return;
-      grid.innerHTML = data.albums
-        .flatMap((album) =>
-          (album.photos || []).map(
-            (p) => `
-        <figure class="gallery-item">
-          <img src="${p.url}" alt="${p.altText || p.caption}" width="1000" height="1333" loading="lazy" />
-          <figcaption>${p.caption}</figcaption>
-        </figure>`,
-          ),
-        )
-        .join("");
+      galleryAlbums = data.albums;
+      renderGalleryFilters();
+      renderGalleryGrid();
     } catch {
       /* keep static gallery */
     }

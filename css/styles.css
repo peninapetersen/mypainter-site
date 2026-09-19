@@ -649,6 +649,48 @@ a.card:hover {
 }
 
 /* Gallery */
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+  margin-bottom: 1.75rem;
+}
+
+.gallery-filter-pill {
+  border: 2px solid rgba(26, 26, 26, 0.12);
+  border-radius: 999px;
+  padding: 0.55rem 1.2rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gallery-filter-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+
+.gallery-filter-pill.active {
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 2px #1a1a1a;
+  transform: translateY(-1px);
+}
+
+.gallery-filter-pill--all {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.gallery-filter-pill--all.active {
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.35);
+}
+
 .gallery-grid {
   display: grid;
   gap: 1rem;
@@ -699,6 +741,13 @@ a.card:hover {
   font-size: 0.9rem;
   line-height: 1.35;
   text-align: center;
+}
+
+.gallery-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--grey);
+  padding: 2rem 1rem;
 }
 
 .gallery-note {
