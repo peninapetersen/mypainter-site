@@ -29,15 +29,22 @@ import { JobsOnFormPage } from "@/pages/jobs-on/JobsOnFormPage";
 import { InvoicesStartPage } from "@/pages/invoices/InvoicesStartPage";
 import { InvoicesListPage } from "@/pages/invoices/InvoicesListPage";
 import { InvoiceFormPage } from "@/pages/invoices/InvoiceFormPage";
+import { InvoicePrintPage } from "@/pages/documents/InvoicePrintPage";
+import { QuotePrintPage } from "@/pages/documents/QuotePrintPage";
 import { ExpensesStartPage } from "@/pages/expenses/ExpensesStartPage";
 import { ExpensesListPage } from "@/pages/expenses/ExpensesListPage";
 import { ExpenseFormPage } from "@/pages/expenses/ExpenseFormPage";
 import { WorkSettingsPage } from "@/pages/settings/WorkSettingsPage";
+import { TaxAccountingPage } from "@/pages/settings/TaxAccountingPage";
 import { SchedulePage } from "@/pages/schedule/SchedulePage";
 import { WebsitePage } from "@/pages/website/WebsitePage";
 import { PipelinePage } from "@/pages/pipeline/PipelinePage";
 import { TimesheetsPage } from "@/pages/timesheets/TimesheetsPage";
 import { TimesheetFormPage } from "@/pages/timesheets/TimesheetFormPage";
+import { SuppliersListPage } from "@/pages/suppliers/SuppliersListPage";
+import { SupplierFormPage } from "@/pages/suppliers/SupplierFormPage";
+import { ContractorsListPage } from "@/pages/contractors/ContractorsListPage";
+import { ContractorFormPage } from "@/pages/contractors/ContractorFormPage";
 
 export default function App() {
   return (
@@ -47,10 +54,13 @@ export default function App() {
         <Route
           element={
             <AuthGuard>
-              <AppShell />
+              <Outlet />
             </AuthGuard>
           }
         >
+          <Route path="quotes/:id/print" element={<QuotePrintPage />} />
+          <Route path="invoices/:id/print" element={<InvoicePrintPage />} />
+          <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route path="pipeline" element={<PipelinePage />} />
 
@@ -59,6 +69,20 @@ export default function App() {
             <Route path="list" element={<ClientsListPage />} />
             <Route path="new" element={<ClientFormPage />} />
             <Route path=":id" element={<ClientFormPage />} />
+          </Route>
+
+          <Route path="suppliers" element={<Outlet />}>
+            <Route index element={<Navigate to="/suppliers/list" replace />} />
+            <Route path="list" element={<SuppliersListPage />} />
+            <Route path="new" element={<SupplierFormPage />} />
+            <Route path=":id" element={<SupplierFormPage />} />
+          </Route>
+
+          <Route path="contractors" element={<Outlet />}>
+            <Route index element={<Navigate to="/contractors/list" replace />} />
+            <Route path="list" element={<ContractorsListPage />} />
+            <Route path="new" element={<ContractorFormPage />} />
+            <Route path=":id" element={<ContractorFormPage />} />
           </Route>
 
           <Route path="requests" element={<Outlet />}>
@@ -104,6 +128,7 @@ export default function App() {
           </Route>
           <Route path="settings">
             <Route path="work" element={<WorkSettingsPage />} />
+            <Route path="tax" element={<TaxAccountingPage />} />
           </Route>
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="website" element={<WebsitePage />} />
@@ -116,6 +141,7 @@ export default function App() {
           <Route path="insights" element={<PlaceholderPage title="Insights" subtitle="Phase 5 — dashboards." />} />
           <Route path="insights/reports" element={<PlaceholderPage title="Reports" />} />
           <Route path="insights/tax" element={<PlaceholderPage title="Tax Returns" />} />
+          </Route>
         </Route>
       </Routes>
     </ErrorBannerProvider>

@@ -13,6 +13,73 @@ export type CustomField = { label: string; value: string };
 
 export type CommunicationSettings = { email: boolean; sms: boolean };
 
+export type TaxMode = "exclusive" | "inclusive";
+
+export type AccountCodeType = "income" | "expense" | "asset" | "other";
+
+export type AccountGstType = "gst_on_income" | "gst_on_expenses" | "no_gst" | "zero_rated";
+
+export type AccountCode = {
+  id: string;
+  user_id: string;
+  code: string;
+  name: string;
+  account_type: AccountCodeType;
+  gst_type: AccountGstType;
+  description: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Supplier = {
+  id: string;
+  user_id: string;
+  name: string;
+  company_name: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  fax: string;
+  address: string;
+  physical_street_1: string;
+  physical_street_2: string;
+  physical_city: string;
+  physical_region: string;
+  physical_postal_code: string;
+  physical_country: string;
+  postal_street_1: string;
+  postal_street_2: string;
+  postal_city: string;
+  postal_region: string;
+  postal_postal_code: string;
+  postal_country: string;
+  default_due_days: number;
+  tax_mode: TaxMode;
+  default_account_code: string;
+  gst_number: string;
+  account_code: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Contractor = {
+  id: string;
+  user_id: string;
+  name: string;
+  company_name: string;
+  email: string;
+  phone: string;
+  trade: string;
+  hourly_rate: number;
+  day_rate: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Client = {
   id: string;
   user_id: string;
@@ -132,7 +199,7 @@ export type JobOn = {
   site_address: string;
   line_items: LineItem[];
   notes: string;
-  status: "active" | "completed";
+  status: "draft" | "active" | "completed";
   approved_at: string;
   created_at: string;
   updated_at: string;
@@ -270,6 +337,8 @@ export type CrewTimesheet = {
   user_id: string;
   crew_member: string;
   job_id: string | null;
+  jobs_on_id: string | null;
+  contractor_id: string | null;
   check_in_time: string | null;
   check_out_time: string | null;
   duration_seconds: number | null;
@@ -366,6 +435,15 @@ export type WorkSettings = {
   statement_disclaimer: string;
   invoice_reminder_reassign: boolean;
   invoice_reminder_assigned_to: string;
+  quote_default_terms: string;
+  invoice_default_contract: string;
+  document_phone: string;
+  document_email: string;
+  document_tagline: string;
+  gst_rate: number;
+  gst_default_on_quotes: boolean;
+  gst_default_on_invoices: boolean;
+  default_tax_mode: TaxMode;
   created_at: string;
   updated_at: string;
 };

@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { initSupabase } from "./lib/supabase";
 import "./index.css";
+import "./styles/document-a4.css";
 
 const root = document.getElementById("root")!;
 

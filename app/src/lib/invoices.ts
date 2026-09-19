@@ -2,6 +2,8 @@ import { requireUserId } from "@/lib/auth";
 import { DEFAULT_INVOICE_CONTRACT } from "@/lib/invoice-defaults";
 import { calcLineSubtotal, calcQuoteTotals, todayIsoDate } from "@/lib/line-items";
 import { supabase } from "@/lib/supabase";
+import { resolveGstRate } from "@/lib/tax";
+import { getWorkSettings } from "@/lib/work-settings";
 import type { Invoice, LineItem } from "@/types/entities";
 
 const OPTIONAL_INVOICE_COLUMNS = [
@@ -113,7 +115,10 @@ export async function createInvoice(input: {
   const line_items = input.line_items ?? [];
   const discount = input.discount ?? 0;
   const subtotal = calcLineSubtotal(line_items);
-  const { gst, total } = calcQuoteTotals(subtotal, discount, input.gstRegistered ?? false);
+  const ws = await getWorkSettings().catch(() => null);
+  const gstRate = resolveGstRate(ws);
+  const gstOn = input.gstRegistered ?? ws?.gst_default_on_invoices ?? false;
+  const { gst, total } = calcQuoteTotals(subtotal, discount, gstOn, gstRate);
   const number = await nextInvoiceNumber();
   return insertInvoiceRow({
     user_id,
@@ -148,7 +153,9 @@ export async function updateInvoice(
   let totals: Record<string, number> = {};
   if (line_items) {
     const subtotal = calcLineSubtotal(line_items);
-    totals = calcQuoteTotals(subtotal, discount, input.gstRegistered ?? (Number(input.gst) > 0));
+    const ws = await getWorkSettings().catch(() => null);
+    const gstRate = resolveGstRate(ws);
+    totals = calcQuoteTotals(subtotal, discount, input.gstRegistered ?? Number(input.gst) > 0, gstRate);
   }
   const { gstRegistered: _, issued_date, ...rest } = input;
   const patch: Record<string, unknown> = { ...rest, ...totals };
@@ -178,6 +185,16 @@ export async function markInvoicePaid(id: string): Promise<Invoice> {
     status: "paid",
     balance: 0,
     paid_at: new Date().toISOString(),
+  });
+}
+
+/** Mark invoice sent (customer delivery — email/print from preview). */
+export async function sendInvoiceToCustomer(id: string): Promise<Invoice> {
+  const inv = await getInvoice(id);
+  if (!inv) throw new Error("Invoice not found");
+  return patchInvoiceRow(id, {
+    status: inv.status === "draft" ? "sent" : inv.status,
+    sent_at: inv.sent_at ?? new Date().toISOString(),
   });
 }
 

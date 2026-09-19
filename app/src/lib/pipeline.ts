@@ -119,7 +119,8 @@ function deriveStageFromLead(_j: Job): PipelineStage {
   return "lead";
 }
 
-function deriveStageFromJobsOn(_j: JobOn): PipelineStage {
+function deriveStageFromJobsOn(j: JobOn): PipelineStage {
+  if (j.status === "draft") return "quote";
   return "jobs_on";
 }
 

@@ -1,1 +1,3 @@
 /admin /admin/index.html 200
+/quotes/:id/print /app/quotes/:id/print 302
+/invoices/:id/print /app/invoices/:id/print 302

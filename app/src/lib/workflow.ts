@@ -1,5 +1,6 @@
 import { listExpenses } from "@/lib/expenses";
 import { getInvoice, listInvoices } from "@/lib/invoices";
+import { ensureJobsOnForApprovedQuote } from "@/lib/jobs-on-sync";
 import { getJobsOn, listJobsOn } from "@/lib/jobs-on";
 import { getJob, listJobs } from "@/lib/jobs";
 import { getQuote, listQuotes } from "@/lib/quotes";
@@ -112,6 +113,13 @@ export async function loadWorkflowChain(anchor: WorkflowAnchor): Promise<Workflo
 
   if (request && !lead) lead = await latestLeadForRequest(request.id, leads);
   if (quote && !jobsOn) jobsOn = await latestJobsOnForQuote(quote.id, jobsOnList);
+  if (quote?.status === "approved" && !jobsOn) {
+    try {
+      jobsOn = await ensureJobsOnForApprovedQuote(quote.id);
+    } catch {
+      /* QuoteFormPage shows repair button */
+    }
+  }
   if (quote && !lead) lead = await latestLeadForQuote(quote.id, leads);
   if (request && !quote) quote = await latestQuoteForRequest(request.id, quotes);
 

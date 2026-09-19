@@ -79,6 +79,16 @@ export async function listExpenses(): Promise<Expense[]> {
   return (data ?? []) as Expense[];
 }
 
+export async function listExpensesForJobsOn(jobsOnId: string): Promise<Expense[]> {
+  const { data, error } = await supabase
+    .from("mp_expenses")
+    .select("*")
+    .eq("jobs_on_id", jobsOnId)
+    .order("expense_date", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Expense[];
+}
+
 export async function getExpense(id: string): Promise<Expense | null> {
   const { data, error } = await supabase.from("mp_expenses").select("*").eq("id", id).maybeSingle();
   if (error) throw error;

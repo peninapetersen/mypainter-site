@@ -48,6 +48,58 @@ export function WorkSettingsPage() {
           <p className="mt-1 text-sm text-slate-500">Defaults for quotes, jobs, visits, and invoices.</p>
         </div>
 
+        <section id="documents" className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-bold text-[var(--mp-navy)]">Quote &amp; invoice documents</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            A4 templates — logo, footer contact, and default terms. Edit a quote/invoice then <strong>View</strong> to preview.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-bold uppercase text-slate-400">Phone on documents</span>
+              <input
+                value={form.document_phone}
+                onChange={(e) => setForm({ ...form, document_phone: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-bold uppercase text-slate-400">Email on documents</span>
+              <input
+                value={form.document_email}
+                onChange={(e) => setForm({ ...form, document_email: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+          </div>
+          <label className="mt-4 block text-sm">
+            <span className="mb-1 block text-xs font-bold uppercase text-slate-400">Tagline under logo</span>
+            <input
+              value={form.document_tagline}
+              onChange={(e) => setForm({ ...form, document_tagline: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+          <label className="mt-4 block text-sm">
+            <span className="mb-1 block font-semibold text-slate-700">Default quote terms</span>
+            <p className="mb-1 text-xs text-slate-500">Pre-filled on new quotes — appears at the bottom of the A4 quote.</p>
+            <textarea
+              value={form.quote_default_terms}
+              onChange={(e) => setForm({ ...form, quote_default_terms: e.target.value })}
+              rows={3}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+          <label className="mt-4 block text-sm">
+            <span className="mb-1 block font-semibold text-slate-700">Default invoice contract / payment note</span>
+            <textarea
+              value={form.invoice_default_contract}
+              onChange={(e) => setForm({ ...form, invoice_default_contract: e.target.value })}
+              rows={3}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+        </section>
+
         <section className="rounded-lg border border-slate-200 bg-white p-6">
           <h2 className="text-lg font-bold text-[var(--mp-navy)]">Quotes</h2>
           <label className="mt-4 flex items-start gap-3 text-sm">

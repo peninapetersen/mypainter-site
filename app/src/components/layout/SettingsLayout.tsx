@@ -1,7 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 
 const SECTIONS = [
-  { heading: "Business management", items: [{ label: "Company settings", disabled: true }, { label: "Expense tracking", to: "/expenses" }] },
+  {
+    heading: "Business management",
+    items: [
+      { label: "Tax & accounting", to: "/settings/tax" },
+      { label: "Company settings", disabled: true },
+      { label: "Expense tracking", to: "/expenses" },
+    ],
+  },
   {
     heading: "Team organisation",
     items: [

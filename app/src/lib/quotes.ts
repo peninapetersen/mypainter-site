@@ -1,6 +1,8 @@
 import { requireUserId } from "@/lib/auth";
 import { calcLineSubtotal, calcQuoteTotals, DEFAULT_QUOTE_TERMS, todayIsoDate, addDaysIsoDate } from "@/lib/line-items";
 import { supabase } from "@/lib/supabase";
+import { resolveGstRate } from "@/lib/tax";
+import { getWorkSettings } from "@/lib/work-settings";
 import type { LineItem, Quote } from "@/types/entities";
 
 export async function peekQuoteNumber(): Promise<string> {
@@ -50,7 +52,10 @@ export async function createQuote(input: {
   const line_items = input.line_items ?? [];
   const subtotal = calcLineSubtotal(line_items);
   const discount = input.discount ?? 0;
-  const { gst, total } = calcQuoteTotals(subtotal, discount, input.gstRegistered ?? false);
+  const ws = await getWorkSettings().catch(() => null);
+  const gstRate = resolveGstRate(ws);
+  const gstOn = input.gstRegistered ?? ws?.gst_default_on_quotes ?? false;
+  const { gst, total } = calcQuoteTotals(subtotal, discount, gstOn, gstRate);
   const number = await nextQuoteNumber();
   const { data, error } = await supabase
     .from("mp_quotes")
@@ -86,7 +91,9 @@ export async function updateQuote(
   let totals = {};
   if (line_items) {
     const subtotal = calcLineSubtotal(line_items);
-    totals = calcQuoteTotals(subtotal, discount, input.gstRegistered ?? input.gst > 0);
+    const ws = await getWorkSettings().catch(() => null);
+    const gstRate = resolveGstRate(ws);
+    totals = calcQuoteTotals(subtotal, discount, input.gstRegistered ?? Number(input.gst) > 0, gstRate);
   }
   const { gstRegistered: _, ...rest } = input;
   const { data, error } = await supabase
@@ -108,6 +115,18 @@ export function newApprovalToken(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }
 
+/** Create view link for print/preview — token only, does not mark sent. */
+export async function ensureQuoteViewLink(id: string, origin: string): Promise<{ url: string; token: string }> {
+  const existing = await getQuote(id);
+  if (!existing) throw new Error("Quote not found");
+  const token = existing.approval_token || newApprovalToken();
+  if (!existing.approval_token) {
+    const { error } = await supabase.from("mp_quotes").update({ approval_token: token }).eq("id", id);
+    if (error) throw error;
+  }
+  return { url: quoteCustomerViewUrl(token, origin), token };
+}
+
 /** Generate customer approval link and mark quote sent. */
 export async function sendQuoteToCustomer(id: string, origin: string): Promise<{ url: string; token: string }> {
   const existing = await getQuote(id);
@@ -124,10 +143,51 @@ export async function sendQuoteToCustomer(id: string, origin: string): Promise<{
     .select("*")
     .single();
   if (error) throw error;
-  const url = `${origin.replace(/\/$/, "")}/approve.html?token=${token}`;
+  const url = quoteCustomerViewUrl(token, origin);
   return { url, token };
 }
 
+/** Customer-facing A4 quote page (view + approve) */
+export function quoteCustomerViewUrl(token: string, origin: string): string {
+  return `${origin.replace(/\/$/, "")}/quote-view.html?token=${token}`;
+}
+
 export function quoteApprovalUrl(token: string, origin: string): string {
-  return `${origin.replace(/\/$/, "")}/approve.html?token=${token}`;
+  return quoteCustomerViewUrl(token, origin);
+}
+
+/** Customer changed mind — quote back to sent; linked Jobs On → draft; pipeline → quote. */
+export async function unapproveQuote(id: string): Promise<Quote> {
+  const quote = await getQuote(id);
+  if (!quote) throw new Error("Quote not found");
+  if (quote.status !== "approved") throw new Error("Only approved quotes can be unapproved");
+
+  const { getJobsOnByQuote, updateJobsOn } = await import("@/lib/jobs-on");
+  const { upsertPipelineForWorkflow } = await import("@/lib/pipeline");
+
+  const { data, error } = await supabase
+    .from("mp_quotes")
+    .update({ status: "sent", approved_at: null })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+
+  const jobsOn = await getJobsOnByQuote(id);
+  if (jobsOn && jobsOn.status !== "completed") {
+    await updateJobsOn(jobsOn.id, { status: "draft" });
+  }
+
+  await upsertPipelineForWorkflow({
+    request_id: quote.request_id,
+    quote_id: quote.id,
+    job_id: jobsOn?.lead_id ?? null,
+    jobs_on_id: jobsOn?.id ?? null,
+    client_id: quote.client_id,
+    title: quote.title || quote.number,
+    stage: "quote",
+    deal_value: Number(quote.total),
+  }).catch(() => {});
+
+  return data as Quote;
 }

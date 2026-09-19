@@ -3,7 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Approve quote — MyPainter</title>
+  <title>Quote — MyPainter</title>
+  <script>
+    const t = new URLSearchParams(location.search).get("token");
+    if (t) location.replace("/quote-view.html?token=" + encodeURIComponent(t));
+  </script>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #0f3a5f; }

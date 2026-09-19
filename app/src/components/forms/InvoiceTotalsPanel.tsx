@@ -13,6 +13,7 @@ export function InvoiceTotalsPanel({
   onToggleDiscount,
   onToggleTax,
   onDiscountChange,
+  gstLabel = "GST (15%)",
 }: {
   subtotal: number;
   discount: number;
@@ -25,6 +26,7 @@ export function InvoiceTotalsPanel({
   onToggleDiscount: () => void;
   onToggleTax: () => void;
   onDiscountChange: (n: number) => void;
+  gstLabel?: string;
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -61,7 +63,7 @@ export function InvoiceTotalsPanel({
         )}
         {showTax || gstRegistered ? (
           <div className="flex justify-between">
-            <span>Tax</span>
+            <span>{gstLabel}</span>
             <span>{formatCurrency(gst)}</span>
           </div>
         ) : (

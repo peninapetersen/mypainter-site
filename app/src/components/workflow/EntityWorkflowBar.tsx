@@ -46,9 +46,15 @@ function nextAction(
   }
   if (current === "quote" && chain.quote && !chain.jobsOn) {
     if (chain.quote.status === "approved") {
-      return { label: "Open Jobs On", to: `/jobs-on?quote=${chain.quote.id}` };
+      return { label: "Open Jobs On", to: `/jobs-on/list` };
     }
     return { label: "Send quote to customer", to: `/quotes/${chain.quote.id}` };
+  }
+  if (current === "quote" && chain.quote && chain.jobsOn) {
+    if (chain.jobsOn.status === "draft") {
+      return { label: "Jobs On (draft)", to: `/jobs-on/${chain.jobsOn.id}` };
+    }
+    return { label: "Open Jobs On", to: `/jobs-on/${chain.jobsOn.id}` };
   }
   if (current === "jobs_on" && chain.jobsOn && !chain.invoice) {
     return { label: "Create invoice", to: `/invoices/new?fromJobsOn=${chain.jobsOn.id}` };

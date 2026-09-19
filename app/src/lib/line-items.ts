@@ -12,9 +12,15 @@ export function calcLineCost(items: LineItem[]): number {
   return items.reduce((sum, item) => sum + item.qty * (item.unitCost ?? 0), 0);
 }
 
-export function calcQuoteTotals(subtotal: number, discount: number, gstRegistered: boolean) {
+export function calcQuoteTotals(
+  subtotal: number,
+  discount: number,
+  gstRegistered: boolean,
+  gstRate: number = GST_RATE,
+) {
   const afterDiscount = Math.max(0, subtotal - discount);
-  const gst = gstRegistered ? afterDiscount * GST_RATE : 0;
+  const rate = Number.isFinite(gstRate) && gstRate >= 0 ? gstRate : GST_RATE;
+  const gst = gstRegistered ? afterDiscount * rate : 0;
   const total = afterDiscount + gst;
   return { subtotal, discount, gst, total };
 }

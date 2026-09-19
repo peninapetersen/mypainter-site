@@ -1,4 +1,5 @@
 import { requireUserId } from "@/lib/auth";
+import { resolveJobsOnSiteAddress } from "@/lib/jobs-on-address";
 import { calcLineSubtotal } from "@/lib/line-items";
 import { supabase } from "@/lib/supabase";
 import type { JobOn, LineItem, Quote } from "@/types/entities";
@@ -57,10 +58,34 @@ export async function createJobsOnFromQuote(input: {
   const user_id = await requireUserId();
   const { quote } = input;
   const existing = await getJobsOnByQuote(quote.id);
-  if (existing) return existing;
+  if (existing) {
+    if (existing.status === "draft") {
+      const site_address =
+        existing.site_address?.trim() ||
+        input.site_address?.trim() ||
+        (await resolveJobsOnSiteAddress({
+          client_id: quote.client_id,
+          lead_id: input.lead_id ?? existing.lead_id,
+        }));
+      return updateJobsOn(existing.id, {
+        status: "active",
+        approved_at: new Date().toISOString(),
+        title: quote.title || existing.title,
+        line_items: (quote.line_items ?? []).filter((li: LineItem) => !li.isText),
+        ...(site_address ? { site_address } : {}),
+      });
+    }
+    return existing;
+  }
 
   const num = await nextJobsOnNum();
   const line_items = (quote.line_items ?? []).filter((li: LineItem) => !li.isText);
+  const site_address =
+    input.site_address?.trim() ||
+    (await resolveJobsOnSiteAddress({
+      client_id: quote.client_id,
+      lead_id: input.lead_id ?? null,
+    }));
 
   return insertJobsOnRow({
     user_id,
@@ -70,7 +95,7 @@ export async function createJobsOnFromQuote(input: {
     client_id: quote.client_id,
     number: `ON-${String(num).padStart(3, "0")}`,
     title: quote.title || `Job ${quote.number}`,
-    site_address: input.site_address ?? "",
+    site_address,
     line_items,
     notes: input.notes ?? "",
     status: "active",

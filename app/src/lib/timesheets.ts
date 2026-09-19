@@ -21,6 +21,16 @@ export async function listTimesheetsForJob(jobId: string): Promise<CrewTimesheet
   return (data ?? []) as CrewTimesheet[];
 }
 
+export async function listTimesheetsForJobsOn(jobsOnId: string): Promise<CrewTimesheet[]> {
+  const { data, error } = await supabase
+    .from("mp_crew_timesheets")
+    .select("*")
+    .eq("jobs_on_id", jobsOnId)
+    .order("check_in_time", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as CrewTimesheet[];
+}
+
 export async function getTimesheet(id: string): Promise<CrewTimesheet | null> {
   const { data, error } = await supabase.from("mp_crew_timesheets").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
@@ -36,24 +46,33 @@ function durationSeconds(checkIn: string | null, checkOut: string | null): numbe
 export async function createTimesheet(input: {
   crew_member?: string;
   job_id?: string | null;
+  jobs_on_id?: string | null;
+  contractor_id?: string | null;
   check_in_time?: string | null;
   check_out_time?: string | null;
 }): Promise<CrewTimesheet> {
   const user_id = await requireUserId();
   const check_in_time = input.check_in_time ?? new Date().toISOString();
   const check_out_time = input.check_out_time ?? null;
-  const { data, error } = await supabase
-    .from("mp_crew_timesheets")
-    .insert({
-      user_id,
-      crew_member: input.crew_member ?? "Richo Petersen",
-      job_id: input.job_id ?? null,
-      check_in_time,
-      check_out_time,
-      duration_seconds: durationSeconds(check_in_time, check_out_time),
-    })
-    .select("*")
-    .single();
+  const row = {
+    user_id,
+    crew_member: input.crew_member ?? "Richo Petersen",
+    job_id: input.job_id ?? null,
+    jobs_on_id: input.jobs_on_id ?? null,
+    contractor_id: input.contractor_id ?? null,
+    check_in_time,
+    check_out_time,
+    duration_seconds: durationSeconds(check_in_time, check_out_time),
+  };
+  const { data, error } = await supabase.from("mp_crew_timesheets").insert(row).select("*").single();
+  if (error && /column|schema cache|PGRST204/i.test(error.message)) {
+    const basic = { ...row };
+    delete (basic as Record<string, unknown>).jobs_on_id;
+    delete (basic as Record<string, unknown>).contractor_id;
+    const { data: data2, error: error2 } = await supabase.from("mp_crew_timesheets").insert(basic).select("*").single();
+    if (error2) throw error2;
+    return data2 as CrewTimesheet;
+  }
   if (error) throw error;
   return data as CrewTimesheet;
 }
@@ -70,6 +89,19 @@ export async function updateTimesheet(id: string, input: Partial<CrewTimesheet>)
     );
   }
   const { data, error } = await supabase.from("mp_crew_timesheets").update(patch).eq("id", id).select("*").single();
+  if (error && /column|schema cache|PGRST204/i.test(error.message)) {
+    const basic = { ...patch };
+    delete (basic as Record<string, unknown>).jobs_on_id;
+    delete (basic as Record<string, unknown>).contractor_id;
+    const { data: data2, error: error2 } = await supabase
+      .from("mp_crew_timesheets")
+      .update(basic)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error2) throw error2;
+    return data2 as CrewTimesheet;
+  }
   if (error) throw error;
   return data as CrewTimesheet;
 }

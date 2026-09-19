@@ -6,6 +6,14 @@ export function formatSupabaseError(err: unknown): string {
   const e = err as { message?: string; code?: string; details?: string; hint?: string };
   const msg = e.message ?? "Save failed";
 
+  if (msg.includes("mp_account_codes")) {
+    return `${msg} — Run migration 019 in Supabase SQL editor: supabase/migrations/019_suppliers_tax_accounting.sql`;
+  }
+
+  if (msg.includes("mp_suppliers") || msg.includes("mp_contractors")) {
+    return `${msg} — Run migration 018 in Supabase SQL editor: supabase/migrations/018_contacts_contractors_timesheets.sql`;
+  }
+
   if (
     msg.includes("mp_client_properties") ||
     msg.includes("mp_client_contacts") ||
@@ -32,6 +40,8 @@ export function formatSupabaseError(err: unknown): string {
 export function isMissingTableError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return (
+    msg.includes("mp_suppliers") ||
+    msg.includes("mp_contractors") ||
     msg.includes("mp_client_properties") ||
     msg.includes("mp_client_contacts") ||
     msg.includes("Could not find the table") ||

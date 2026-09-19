@@ -27,7 +27,16 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Home", path: "/", icon: Home },
   { label: "Pipeline", path: "/pipeline", icon: Kanban },
-  { label: "Clients", path: "/clients", icon: UserCircle },
+  {
+    label: "Contacts",
+    path: "/clients",
+    icon: UserCircle,
+    children: [
+      { label: "Customers", path: "/clients/list" },
+      { label: "Suppliers", path: "/suppliers/list" },
+      { label: "Contractors", path: "/contractors/list" },
+    ],
+  },
   { label: "Requests", path: "/requests", icon: ScrollText },
   { label: "Leads", path: "/leads", icon: Wrench },
   { label: "Quotes", path: "/quotes", icon: FileText },
@@ -51,7 +60,9 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const NEW_MENU_LINKS = [
-  { label: "Client", path: "/clients" },
+  { label: "Customer", path: "/clients/new" },
+  { label: "Supplier", path: "/suppliers/new" },
+  { label: "Contractor", path: "/contractors/new" },
   { label: "Request", path: "/requests" },
   { label: "Lead", path: "/leads" },
   { label: "Quote", path: "/quotes" },

@@ -1,6 +1,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ChevronDown, Plus, Receipt } from "lucide-react";
+import { ChevronDown, Eye, Plus, Receipt } from "lucide-react";
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+import { InvoiceDocument } from "@/components/documents/InvoiceDocument";
+import { buildInvoiceDocumentData } from "@/lib/document-preview";
+import { documentProfileFromSettings } from "@/lib/document-profile";
 import { ClientSelect } from "@/components/forms/ClientSelect";
 import { InvoiceClientMessageSection } from "@/components/forms/InvoiceClientMessageSection";
 import { InvoiceContractSection } from "@/components/forms/InvoiceContractSection";
@@ -11,6 +15,7 @@ import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { DEFAULT_INVOICE_CONTRACT, PAYMENT_TERMS_OPTIONS, displayInvoiceNumber } from "@/lib/invoice-defaults";
 import { calcLineSubtotal, calcQuoteTotals, todayIsoDate } from "@/lib/line-items";
+import { formatGstLabel, resolveGstRate } from "@/lib/tax";
 import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
 import { listClients } from "@/lib/clients";
 import {
@@ -20,6 +25,7 @@ import {
   markInvoicePaid,
   peekInvoiceNumber,
   prepareInvoiceForCustomer,
+  sendInvoiceToCustomer,
   updateInvoice,
 } from "@/lib/invoices";
 import { upsertPipelineForWorkflow } from "@/lib/pipeline";
@@ -67,8 +73,12 @@ export function InvoiceFormPage() {
   const [showContract, setShowContract] = useState(true);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showTax, setShowTax] = useState(false);
+  const [gstRate, setGstRate] = useState(0.15);
   const [applyDefaultContract, setApplyDefaultContract] = useState(true);
   const [testimonialUrl, setTestimonialUrl] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [docProfile, setDocProfile] = useState(() => documentProfileFromSettings(null));
   const [form, setForm] = useState({
     client_id: "",
     job_id: "" as string | null,
@@ -98,6 +108,10 @@ export function InvoiceFormPage() {
             listJobs().catch(() => []),
           ]);
           if (cancelled) return;
+          if (ws) {
+            setDocProfile(documentProfileFromSettings(ws));
+            setGstRate(resolveGstRate(ws));
+          }
           setPreviewNumber(await peekInvoiceNumber());
           const fromJob = search.get("fromJob");
           const fromJobsOn = search.get("fromJobsOn");
@@ -182,13 +196,21 @@ export function InvoiceFormPage() {
               ...f,
               subject: subjectDefault,
               payment_terms: ws?.payment_terms_residential ?? PAYMENT_TERMS_OPTIONS[0],
+              contract: ws?.invoice_default_contract?.trim() || f.contract,
+              gstRegistered: ws?.gst_default_on_invoices ?? false,
             }));
+            if (ws?.gst_default_on_invoices) setShowTax(true);
           }
           setLoading(false);
           return;
         }
         const inv = await getInvoice(id!);
         if (!inv) throw new Error("Invoice not found");
+        const ws = await getWorkSettings().catch(() => null);
+        if (ws) {
+          setDocProfile(documentProfileFromSettings(ws));
+          setGstRate(resolveGstRate(ws));
+        }
         setPreviewNumber(displayInvoiceNumber(inv.number));
         setShowDiscount(Number(inv.discount) > 0);
         setShowTax(Number(inv.gst) > 0);
@@ -227,7 +249,7 @@ export function InvoiceFormPage() {
   }, [id, isNew, search, showError]);
 
   const subtotal = calcLineSubtotal(form.line_items);
-  const totals = calcQuoteTotals(subtotal, form.discount, form.gstRegistered || showTax);
+  const totals = calcQuoteTotals(subtotal, form.discount, form.gstRegistered || showTax, gstRate);
   const balance = form.status === "paid" ? 0 : totals.total;
 
   async function persist() {
@@ -299,6 +321,22 @@ export function InvoiceFormPage() {
     }
   }
 
+  async function sendToCustomer() {
+    if (!id || isNew) {
+      showError("Save the invoice first, then send it.");
+      return;
+    }
+    setSending(true);
+    try {
+      await sendInvoiceToCustomer(id);
+      setForm((f) => ({ ...f, status: f.status === "draft" ? "sent" : f.status }));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not send invoice");
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function copyTestimonialLink() {
     if (!id || isNew) return;
     setSaving(true);
@@ -329,14 +367,41 @@ export function InvoiceFormPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
+  const invoiceDoc = buildInvoiceDocumentData({
+    number: previewNumber,
+    subject: form.subject,
+    issued_date: form.issued_date,
+    payment_terms: form.payment_terms,
+    line_items: form.line_items,
+    discount: form.discount,
+    gstRegistered: form.gstRegistered || showTax,
+    client_message: form.client_message,
+    contract: form.contract,
+    status: form.status,
+    balance,
+    client_id: form.client_id,
+    clients,
+    profile: docProfile,
+  });
+  const customerEmail = clients.find((c) => c.id === form.client_id)?.email?.trim() ?? "";
+
   return (
     <div className="pb-24">
       <div className="mb-6 flex items-start justify-between">
         <Link to="/invoices" className="text-sm text-slate-500 hover:text-slate-800">
           ← Back
         </Link>
-        {!isNew && (
-          <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-[var(--mp-navy)]"
+          >
+            <Eye size={16} />
+            View
+          </button>
+          {!isNew && (
+            <>
             {form.status !== "paid" && (
               <button
                 type="button"
@@ -372,8 +437,9 @@ export function InvoiceFormPage() {
             <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
               Delete
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {!isNew && <EntityWorkflowBar anchor={{ invoiceId: id }} current="invoice" />}
@@ -479,6 +545,7 @@ export function InvoiceFormPage() {
               setForm({ ...form, gstRegistered: true });
             }}
             onDiscountChange={(discount) => setForm({ ...form, discount })}
+            gstLabel={formatGstLabel({ gst_rate: gstRate })}
           />
         </div>
 
@@ -552,6 +619,24 @@ export function InvoiceFormPage() {
           </div>
         </div>
       </div>
+
+      <DocumentPreviewModal
+        open={showPreview}
+        title={`Invoice ${invoiceDoc.number}`}
+        onClose={() => setShowPreview(false)}
+        onSend={sendToCustomer}
+        sending={sending}
+        sendDisabled={isNew}
+        sendHint={
+          isNew
+            ? "Save the invoice first — then Send marks it sent and you can email the customer."
+            : "Send marks the invoice sent. Use Email to open a draft message to the customer."
+        }
+        customerEmail={customerEmail || undefined}
+        printUrl={!isNew ? `/app/invoices/${id}/print` : undefined}
+      >
+        <InvoiceDocument data={invoiceDoc} />
+      </DocumentPreviewModal>
     </div>
   );
 }

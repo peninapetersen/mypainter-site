@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quote — MyPainter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/quote.css?v=a4" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { background: #cfc9bc; font-family: Inter, system-ui, sans-serif; }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: center;
+      padding: 0.75rem 1rem; background: #0f3a5f; color: #fff;
+    }
+    .toolbar button, .toolbar a {
+      border: 0; border-radius: 8px; padding: 0.65rem 1rem; font-weight: 700; cursor: pointer;
+      text-decoration: none; font: inherit; color: #1a1a1a; background: #fdd85d;
+    }
+    .toolbar a.ghost, .toolbar button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.4); }
+    .toolbar button.approve { background: #e87722; color: #fff; }
+    .wrap { display: flex; justify-content: center; padding: 1.25rem 0.75rem 2rem; }
+    .quote-sheet {
+      width: 210mm !important; height: 297mm !important; min-height: 297mm !important;
+      max-height: 297mm !important; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+    .quote-actions { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e5e0d6; }
+    .quote-actions p { font-size: 11pt; color: #555; margin: 0 0 0.75rem; }
+    .quote-actions .btns { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .quote-actions button {
+      padding: 0.65rem 1.1rem; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;
+      font-size: 11pt;
+    }
+    .quote-actions .approve { background: #e87722; color: #fff; }
+    .quote-actions .decline { background: #f1f5f9; color: #475569; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.75rem; border-radius: 8px; font-size: 11pt; }
+    @media print {
+      .toolbar, .quote-actions, .no-print { display: none !important; }
+      .wrap { padding: 0 !important; display: block !important; }
+      body { background: #fff !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print" id="toolbar">
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+    <a href="/" class="ghost">mypainter.co.nz</a>
+  </div>
+  <div class="wrap">
+    <article class="quote-sheet" id="sheet">Loading quote…</article>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    const sheet = document.getElementById("sheet");
+
+    function fmtMoney(n) {
+      return "$" + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+    function fmtDate(iso) {
+      if (!iso) return "";
+      const d = new Date(iso + "T12:00:00");
+      return d.toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
+    }
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderQuote(data) {
+      const q = data.quote;
+      const c = data.client || {};
+      const clientName = c.display_name || c.name || "Customer";
+      const lines = (q.line_items || []).filter((li) => !li.isText);
+      const rows = lines.map((li) => `
+        <div class="quote-line">
+          <span><strong>${esc(li.name || "Item")}</strong>${li.description ? "<br/><span style='color:#555;font-size:11pt'>" + esc(li.description) + "</span>" : ""}</span>
+          <span class="amt">${fmtMoney(li.qty * li.unitPrice)}</span>
+        </div>`).join("");
+
+      let actions = "";
+      if (q.status === "approved") {
+        actions = '<div class="ok"><strong>Approved.</strong> Richard will be in touch to schedule the work.</div>';
+      } else if (q.status === "declined") {
+        actions = "<p>This quote was declined.</p>";
+      } else if (q.status === "sent" || q.status === "draft") {
+        actions = `
+          <div class="quote-actions no-print">
+            <p>Happy with this quote? Approve below — or print/save a copy for your records.</p>
+            <div class="btns">
+              <button type="button" class="approve" id="approve">Approve quote</button>
+              <button type="button" class="decline" id="decline">Decline</button>
+            </div>
+          </div>`;
+      }
+
+      sheet.innerHTML = `
+        <div class="quote-top">
+          <img class="quote-logo" src="/images/logo.png" alt="mypainter.co.nz" width="200" height="75" />
+          <div class="quote-meta">
+            <div class="num">Quote: ${esc(q.number)}</div>
+            ${q.quote_date ? "<div>Date: " + fmtDate(q.quote_date) + "</div>" : ""}
+            ${q.valid_until ? "<div>Valid until: " + fmtDate(q.valid_until) + "</div>" : ""}
+          </div>
+        </div>
+        <div class="quote-parties">
+          <div class="quote-party">
+            <h3>Prepared for</h3>
+            <p><strong>${esc(clientName)}</strong></p>
+            ${c.address ? "<p>" + esc(c.address).replace(/\n/g, "<br/>") + "</p>" : ""}
+            ${c.email ? "<p>" + esc(c.email) + "</p>" : ""}
+          </div>
+          <div class="quote-party">
+            <h3>From</h3>
+            <p><strong>Richard Petersen</strong></p>
+            <p>MyPainter · Whangarei</p>
+            <p>021 083 01415</p>
+            <p>mypaintermate@gmail.com</p>
+          </div>
+        </div>
+        ${q.title ? '<h1 class="quote-title">' + esc(q.title) + "</h1>" : ""}
+        <div class="quote-section">
+          <h2>Line items</h2>
+          <div class="quote-lines">${rows || "<p>No line items</p>"}</div>
+        </div>
+        <div class="quote-totals">
+          <div class="row"><span>Subtotal</span><span>${fmtMoney(q.subtotal)}</span></div>
+          ${Number(q.discount) > 0 ? '<div class="row"><span>Discount</span><span>−' + fmtMoney(q.discount) + "</span></div>" : ""}
+          ${Number(q.gst) > 0 ? '<div class="row"><span>GST</span><span>' + fmtMoney(q.gst) + "</span></div>" : ""}
+          <div class="row grand"><span>Total</span><span>${fmtMoney(q.total)}</span></div>
+        </div>
+        ${q.terms ? '<p class="quote-note">' + esc(q.terms) + "</p>" : ""}
+        <div class="quote-footer">mypainter.co.nz · Painting &amp; Handyman · Northland</div>
+        ${actions}`;
+
+      document.title = "Quote " + q.number + " — MyPainter";
+
+      const approveBtn = document.getElementById("approve");
+      const declineBtn = document.getElementById("decline");
+      if (approveBtn) approveBtn.addEventListener("click", () => postAction("approve"));
+      if (declineBtn) declineBtn.addEventListener("click", () => postAction("decline"));
+    }
+
+    async function postAction(action) {
+      const res = await fetch("/api/public/quote-approval/" + encodeURIComponent(token), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      location.reload();
+    }
+
+    if (!token) {
+      sheet.textContent = "Missing quote link.";
+    } else {
+      fetch("/api/public/quote-approval/" + encodeURIComponent(token))
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          renderQuote(data);
+          if (params.get("print") === "1") {
+            window.setTimeout(() => window.print(), 500);
+          }
+        })
+        .catch((e) => { sheet.textContent = e.message || "Could not load quote."; });
+    }
+  </script>
+</body>
+</html>

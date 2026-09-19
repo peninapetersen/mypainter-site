@@ -1,0 +1,108 @@
+/* A4 quote & invoice documents — matches /css/quote.css sizing */
+.document-page-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1.25rem 0.75rem 2rem;
+  background: #cfc9bc;
+  min-height: 100%;
+}
+
+.document-sheet {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  font-size: 11pt;
+  line-height: 1.35;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+
+.document-sheet .doc-accent-bar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--mp-navy), var(--mp-orange), var(--mp-navy));
+}
+
+.document-sheet .doc-logo {
+  height: 56px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.document-print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  background: var(--mp-navy);
+  color: #fff;
+}
+
+.document-print-toolbar button,
+.document-print-toolbar a {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-decoration: none;
+  color: #1a1a1a;
+  background: #fdd85d;
+}
+
+.document-print-toolbar a.ghost,
+.document-print-toolbar button.ghost {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .document-page-wrap {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  .document-sheet {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+}

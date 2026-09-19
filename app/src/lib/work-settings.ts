@@ -1,4 +1,6 @@
 import { requireUserId } from "@/lib/auth";
+import { DEFAULT_INVOICE_CONTRACT } from "@/lib/invoice-defaults";
+import { DEFAULT_QUOTE_TERMS } from "@/lib/line-items";
 import { supabase } from "@/lib/supabase";
 import type { WorkSettings } from "@/types/entities";
 
@@ -32,6 +34,15 @@ export function defaultWorkSettings(): Omit<WorkSettings, "user_id" | "created_a
     statement_disclaimer: "",
     invoice_reminder_reassign: false,
     invoice_reminder_assigned_to: "Richo Petersen",
+    quote_default_terms: DEFAULT_QUOTE_TERMS,
+    invoice_default_contract: DEFAULT_INVOICE_CONTRACT,
+    document_phone: "021 083 01415",
+    document_email: "mypaintermate@gmail.com",
+    document_tagline: "Painting & Handyman · Whangarei & Northland",
+    gst_rate: 0.15,
+    gst_default_on_quotes: true,
+    gst_default_on_invoices: true,
+    default_tax_mode: "exclusive",
   };
 }
 
@@ -39,7 +50,10 @@ export async function getWorkSettings(): Promise<WorkSettings> {
   const user_id = await requireUserId();
   const { data, error } = await supabase.from("mp_work_settings").select("*").eq("user_id", user_id).maybeSingle();
   if (error) throw error;
-  if (data) return data as WorkSettings;
+  if (data) {
+    const defaults = defaultWorkSettings();
+    return { ...defaults, ...(data as WorkSettings), user_id: data.user_id, created_at: data.created_at, updated_at: data.updated_at };
+  }
   const defaults = defaultWorkSettings();
   const { data: created, error: insertErr } = await supabase
     .from("mp_work_settings")

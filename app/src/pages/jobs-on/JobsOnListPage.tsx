@@ -49,9 +49,21 @@ export function JobsOnListPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3">{r.title || "—"}</td>
-                  <td className="px-4 py-3">{r.client_id ? map.get(r.client_id)?.name || "—" : "—"}</td>
+                  <td className="px-4 py-3">{r.client_id ? map.get(r.client_id) || "—" : "—"}</td>
                   <td className="px-4 py-3">{formatCurrency(jobsOnDealValue(r))}</td>
-                  <td className="px-4 py-3 capitalize">{r.status}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        r.status === "draft"
+                          ? "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                          : r.status === "completed"
+                            ? "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"
+                            : "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800"
+                      }
+                    >
+                      {r.status === "draft" ? "Draft" : r.status === "completed" ? "Completed" : "Active"}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
