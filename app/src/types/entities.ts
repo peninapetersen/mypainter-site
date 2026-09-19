@@ -1,0 +1,107 @@
+export type LineItem = {
+  name: string;
+  description?: string;
+  qty: number;
+  unitPrice: number;
+  unitCost?: number;
+  optional?: boolean;
+};
+
+export type Client = {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  tags: string[];
+  status: "lead" | "active" | "inactive";
+  last_activity_at: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Request = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  title: string;
+  requested_on: string | null;
+  service_details: string;
+  images: { path: string; caption?: string }[];
+  assessment_at: string | null;
+  line_items: LineItem[];
+  subtotal: number;
+  status: "draft" | "open" | "approved" | "closed";
+  internal_notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Quote = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  request_id: string | null;
+  number: string;
+  title: string;
+  quote_date: string | null;
+  valid_until: string | null;
+  line_items: LineItem[];
+  discount: number;
+  subtotal: number;
+  gst: number;
+  total: number;
+  terms: string;
+  status: "draft" | "sent" | "approved" | "declined";
+  internal_notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Job = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  quote_id: string | null;
+  number: string;
+  title: string;
+  visits: unknown[];
+  billing_flags: Record<string, unknown>;
+  line_items: LineItem[];
+  subtotal_cost: number;
+  subtotal_price: number;
+  status: "scheduled" | "active" | "completed";
+  notes: string;
+  attachments: unknown[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type Invoice = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  job_id: string | null;
+  number: string;
+  subject: string;
+  issued_date: string | null;
+  payment_terms: string;
+  line_items: LineItem[];
+  subtotal: number;
+  gst: number;
+  total: number;
+  balance: number;
+  paid_at: string | null;
+  status: "draft" | "sent" | "paid" | "overdue";
+  attachments: unknown[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientInsert = Omit<Client, "id" | "created_at" | "updated_at">;
+export type RequestInsert = Omit<Request, "id" | "created_at" | "updated_at">;
+export type QuoteInsert = Omit<Quote, "id" | "created_at" | "updated_at">;
+export type JobInsert = Omit<Job, "id" | "created_at" | "updated_at">;
+export type InvoiceInsert = Omit<Invoice, "id" | "created_at" | "updated_at">;
