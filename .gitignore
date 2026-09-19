@@ -1,7 +1,9 @@
 node_modules/
+dist/
 .DS_Store
 *.log
 .env
+.env.local
 
 # Local source photos (not part of site build)
 images_richard/

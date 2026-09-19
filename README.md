@@ -1,37 +1,59 @@
 # MyPainter — Richo Petersen
 
-Simple HTML site for Richard "Richo" Petersen — painter and handyman based in Glenbervie, Whangarei.
+Public marketing site + business app for Richard "Richo" Petersen, Whangarei NZ.
+
+## Live
+
+- **Public site:** https://mypainter.co.nz
+- **Business app:** https://mypainter.co.nz/app/login
+- **Legacy admin (gallery / inline edits):** https://mypainter.co.nz/admin/
 
 ## Stack
-- HTML + CSS + Cloudflare Pages Functions
-- D1 database (quotes, gallery, editable page text)
-- R2 bucket (gallery photo uploads)
-- Formspree for contact form
 
-## Admin (login + inline edits + gallery)
-- **Login:** https://mypainter.co.nz/admin/
-- **Gallery folders:** https://mypainter.co.nz/admin/gallery.html
-- When logged in, a toolbar appears on public pages for inline text edits
+| Layer | Tech |
+|-------|------|
+| Public pages | HTML + CSS on Cloudflare Pages |
+| Business app `/app/*` | React + Vite + Tailwind + Supabase Auth |
+| Legacy admin | Cloudflare D1 + R2 + Pages Functions |
+| Database (app) | Supabase **My Sites** project `jkampxliebnzsevvmqre` |
 
-### One-time Cloudflare setup
-1. Create D1 database `mypainter-quotes` and paste IDs into `wrangler.toml`
-2. Run migrations: `wrangler d1 execute mypainter-quotes --remote --file=migrations/0001_quotes.sql` then `0002_cms.sql`
-3. Create R2 bucket `mypainter-gallery` and bind as `GALLERY` in Pages settings
-4. Bind D1 as `DB` in Pages settings
-5. Set env vars: `ADMIN_PASSWORD`, optional `SESSION_SECRET`
+## One-time Supabase setup (Phase 1)
 
-## Live site
-https://mypainter.co.nz
+1. Open [SQL editor](https://supabase.com/dashboard/project/jkampxliebnzsevvmqre/sql)
+2. Run [`supabase/migrations/001_mypainter_foundation.sql`](supabase/migrations/001_mypainter_foundation.sql)
+3. **Authentication → Users** — create Richo's login (email + password)
+4. **Storage** — create buckets `mypainter-gallery`, `mypainter-receipts` (private; RLS in Phase 2)
 
-## Local preview
-No build step. For correct `/` paths (CSS and nav), serve the project folder — for example `python3 -m http.server 8080` — then open http://localhost:8080/
+## Cloudflare Pages env vars
 
-## Adding photos
-Drop images into /images/ folder, then update the `<img>` src in HTML.
+Set in Pages project → Settings → Environment variables (Production):
 
-## Swapping contact form provider
-Current: Formspree (50 submissions/month free).
-Replace the form action URL in contact.html.
+```
+VITE_SUPABASE_URL=https://jkampxliebnzsevvmqre.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key from Supabase API settings>
+```
 
-## Deployed by
-Cloudflare Pages, watching the main branch of GitHub repo.
+Legacy admin still uses: `ADMIN_PASSWORD`, D1 `DB`, R2 `GALLERY`.
+
+## Build & deploy
+
+```bash
+npm install
+npm run build          # outputs dist/ (static site + /app SPA)
+git push origin main   # Cloudflare auto-deploys from main
+```
+
+**Build command on Cloudflare:** `npm run build`  
+**Output directory:** `dist`
+
+## Local dev (business app only)
+
+```bash
+cp .env.example .env.local   # add your anon key
+npm install
+npm run dev                  # Vite on :5173 — use /app/ paths
+```
+
+## Docs
+
+- [`docs/schema.md`](docs/schema.md) — full `mp_*` table column lists
