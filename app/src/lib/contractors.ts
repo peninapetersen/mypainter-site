@@ -43,6 +43,13 @@ export async function updateContractor(id: string, input: Partial<Contractor>): 
   return data as Contractor;
 }
 
+/** Light update for contractor list inline edit. */
+export async function patchContractor(id: string, patch: Partial<Contractor>): Promise<Contractor> {
+  const existing = await getContractor(id);
+  if (!existing) throw new Error("Contractor not found");
+  return updateContractor(id, { ...existing, ...patch });
+}
+
 export async function deleteContractor(id: string): Promise<void> {
   const { error } = await supabase.from("mp_contractors").delete().eq("id", id);
   if (error) throw error;

@@ -1,23 +1,42 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ContactDataTable } from "@/components/contacts/ContactDataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ListEntryLink } from "@/components/ui/ListEntryLink";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
-import { contractorDisplayName, deleteContractor, listContractors } from "@/lib/contractors";
-import { formatCurrency } from "@/lib/nz";
+import { loadContactListColumns, visibleColumnsForList } from "@/lib/contact-list-columns";
+import { contractorDisplayName, deleteContractor, listContractors, patchContractor } from "@/lib/contractors";
+import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { Contractor } from "@/types/entities";
+
+function contractorValues(c: Contractor): Record<string, string> {
+  return {
+    company_name: c.company_name ?? "",
+    name: c.name ?? "",
+    trade: c.trade ?? "",
+    phone: c.phone ?? "",
+    email: c.email ?? "",
+    hourly_rate: c.hourly_rate ? String(c.hourly_rate) : "",
+    day_rate: c.day_rate ? String(c.day_rate) : "",
+  };
+}
 
 export function ContractorsListPage() {
   const { showError } = useErrorBanner();
   const [rows, setRows] = useState<Contractor[]>([]);
+  const [columns, setColumns] = useState(visibleColumnsForList("contractors", { customers: { visible: [] }, companies: { visible: [] }, suppliers: { visible: [] }, contractors: { visible: [] } }));
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const reload = useCallback(() => {
-    return listContractors()
-      .then(setRows)
+    return Promise.all([listContractors(), loadContactListColumns()])
+      .then(([list, colConfig]) => {
+        setRows(list);
+        setColumns(visibleColumnsForList("contractors", colConfig));
+      })
       .catch((e) => showError(e.message));
   }, [showError]);
 
@@ -25,22 +44,47 @@ export function ContractorsListPage() {
     reload().finally(() => setLoading(false));
   }, [reload]);
 
-  async function onDelete(row: Contractor) {
-    setDeletingId(row.id);
+  function updateLocal(id: string, patch: Partial<Contractor>) {
+    setRows((list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  async function saveCell(id: string, columnId: string) {
+    const row = rowsRef.current.find((r) => r.id === id);
+    if (!row) return;
+
+    const patch: Partial<Contractor> = {};
+    if (columnId === "company_name") patch.company_name = row.company_name;
+    if (columnId === "name") patch.name = row.name;
+    if (columnId === "trade") patch.trade = row.trade;
+    if (columnId === "phone") patch.phone = row.phone;
+    if (columnId === "email") patch.email = row.email;
+    if (columnId === "hourly_rate") patch.hourly_rate = Number(row.hourly_rate) || 0;
+    if (columnId === "day_rate") patch.day_rate = Number(row.day_rate) || 0;
+
+    setSavingId(id);
     try {
-      await deleteContractor(row.id);
-      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      const saved = await patchContractor(id, patch);
+      updateLocal(id, saved);
+    } catch (e) {
+      showError(formatSupabaseError(e));
+      await reload();
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function onDelete(id: string) {
+    const row = rowsRef.current.find((r) => r.id === id);
+    if (!row) return;
+    setDeletingId(id);
+    try {
+      await deleteContractor(id);
+      setRows((list) => list.filter((r) => r.id !== id));
     } catch (e) {
       showError(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setDeletingId(null);
     }
-  }
-
-  function rateLabel(row: Contractor): string {
-    if (row.hourly_rate > 0) return `${formatCurrency(row.hourly_rate)}/hr`;
-    if (row.day_rate > 0) return `${formatCurrency(row.day_rate)}/day`;
-    return "No rate set";
   }
 
   return (
@@ -49,10 +93,7 @@ export function ContractorsListPage() {
         title="Contractors"
         subtitle="Subcontractors and crew — hourly or day rates for time estimates."
         actions={
-          <Link
-            to="/contractors/new"
-            className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white hover:opacity-90"
-          >
+          <Link to="/contractors/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white hover:opacity-90">
             New contractor
           </Link>
         }
@@ -61,29 +102,29 @@ export function ContractorsListPage() {
       {loading ? (
         <p className="text-slate-500">Loading…</p>
       ) : rows.length === 0 ? (
-        <EmptyState
-          message="No contractors yet. Add subs with hourly or day rates for job cost estimates."
-          actionLabel="Add contractor"
-          actionTo="/contractors/new"
-        />
+        <EmptyState message="No contractors yet." actionLabel="Add contractor" actionTo="/contractors/new" />
       ) : (
-        <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-          {rows.map((row) => (
-            <li key={row.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <ListEntryLink to={`/contractors/${row.id}`}>{contractorDisplayName(row)}</ListEntryLink>
-                <p className="truncate text-sm text-slate-500">
-                  {[row.trade, row.phone, rateLabel(row)].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-              <ListDeleteButton
-                label={contractorDisplayName(row)}
-                deleting={deletingId === row.id}
-                onDelete={() => onDelete(row)}
-              />
-            </li>
-          ))}
-        </ul>
+        <ContactDataTable
+          columns={columns}
+          rows={rows.map((r) => ({
+            id: r.id,
+            editHref: `/contractors/${r.id}`,
+            deleteLabel: contractorDisplayName(r),
+            values: contractorValues(r),
+          }))}
+          savingId={savingId}
+          deletingId={deletingId}
+          onCellChange={(id, columnId, value) => {
+            if (columnId === "hourly_rate" || columnId === "day_rate") {
+              updateLocal(id, { [columnId]: Number(value) || 0 } as Partial<Contractor>);
+              return;
+            }
+            updateLocal(id, { [columnId]: value } as Partial<Contractor>);
+          }}
+          onCellSave={saveCell}
+          onDelete={onDelete}
+          onCancelRow={() => reload()}
+        />
       )}
     </div>
   );

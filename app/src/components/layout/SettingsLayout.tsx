@@ -13,6 +13,7 @@ const SECTIONS = [
     heading: "Team organisation",
     items: [
       { label: "Work settings", to: "/settings/work" },
+      { label: "Contact lists", to: "/settings/contacts" },
       { label: "Schedule", to: "/schedule" },
     ],
   },

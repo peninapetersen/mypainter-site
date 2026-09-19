@@ -117,6 +117,7 @@ export type Client = {
   billing_same_as_property: boolean;
   tags: string[];
   status: "lead" | "active" | "inactive";
+  client_type: "person" | "company";
   last_activity_at: string | null;
   photo_path: string;
   website: string;
@@ -469,6 +470,7 @@ export type WorkSettings = {
   gst_default_on_quotes: boolean;
   gst_default_on_invoices: boolean;
   default_tax_mode: TaxMode;
+  contact_list_columns: Record<string, { visible: string[] }>;
   created_at: string;
   updated_at: string;
 };

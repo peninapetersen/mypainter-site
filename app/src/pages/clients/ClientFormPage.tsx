@@ -9,7 +9,7 @@ import { FormSection } from "@/components/forms/FormSection";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { clientDisplayName } from "@/lib/client-display";
 import { ClientSelect } from "@/components/forms/ClientSelect";
-import { deleteClient, emptyProperty, getClientBundle, listClients, patchClient, saveClientBundle, validateClientFields } from "@/lib/clients";
+import { deleteClient, emptyProperty, getClientBundle, listCompanies, patchClient, saveClientBundle, validateClientFields } from "@/lib/clients";
 import type { Client } from "@/types/entities";
 import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { ClientContactInput, ClientPropertyInput, CommunicationSettings, CustomField } from "@/types/entities";
@@ -70,13 +70,13 @@ export function ClientFormPage() {
   const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(true);
   const [propertyContactsOpen, setPropertyContactsOpen] = useState(true);
   const [photoPath, setPhotoPath] = useState("");
-  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [companies, setCompanies] = useState<Client[]>([]);
   const uploadFolderId = useMemo(() => (isNew ? crypto.randomUUID() : id!), [isNew, id]);
 
   useEffect(() => {
-    listClients()
-      .then(setAllClients)
-      .catch(() => setAllClients([]));
+    listCompanies()
+      .then(setCompanies)
+      .catch(() => setCompanies([]));
   }, []);
 
   useEffect(() => {
@@ -141,6 +141,7 @@ export function ClientFormPage() {
       const { client: saved, propertiesSkipped } = await saveClientBundle({
         client: {
           ...client,
+          client_type: "person",
           photo_path: photoPath,
           company_client_id: client.company_client_id || null,
         },
@@ -188,7 +189,7 @@ export function ClientFormPage() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
   const displayPreview = clientDisplayName({ ...client, name: "" });
-  const companyOptions = allClients.filter((c) => c.id !== id);
+  const companyOptions = companies.filter((c) => c.id !== id);
   const linkedCompany = companyOptions.find((c) => c.id === client.company_client_id) ?? null;
 
   async function saveHeadshot(path: string) {
@@ -257,6 +258,7 @@ export function ClientFormPage() {
           <ClientSelect
             label="Company"
             emptyLabel="— Link to company client —"
+            newPath="/companies/new"
             clients={companyOptions}
             value={client.company_client_id}
             onChange={(company_client_id) => {

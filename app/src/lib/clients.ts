@@ -28,10 +28,20 @@ export function emptyProperty(overrides?: Partial<ClientPropertyInput>): ClientP
   return { ...EMPTY_PROPERTY, ...overrides };
 }
 
-export async function listClients(): Promise<Client[]> {
-  const { data, error } = await supabase.from("mp_clients").select("*").order("name");
+export async function listClients(opts?: { client_type?: Client["client_type"] }): Promise<Client[]> {
+  let q = supabase.from("mp_clients").select("*").order("name");
+  if (opts?.client_type) q = q.eq("client_type", opts.client_type);
+  const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as Client[];
+}
+
+export async function listCompanies(): Promise<Client[]> {
+  return listClients({ client_type: "company" });
+}
+
+export async function listCustomers(): Promise<Client[]> {
+  return listClients({ client_type: "person" });
 }
 
 export async function getClientBundle(id: string): Promise<ClientBundle | null> {
@@ -74,6 +84,7 @@ function clientPayload(input: Partial<Client>, primary?: ClientPropertyInput) {
     billing_same_as_property: input.billing_same_as_property ?? true,
     tags: input.tags ?? [],
     status: input.status ?? "lead",
+    client_type: input.client_type ?? "person",
     photo_path: input.photo_path ?? "",
     website: input.website ?? "",
     company_client_id: input.company_client_id ?? null,

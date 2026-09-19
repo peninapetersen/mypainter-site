@@ -9,6 +9,7 @@ export function ClientSelect({
   onChange,
   required,
   returnTo,
+  newPath = "/clients/new",
   label = "Client",
   emptyLabel = "— Select client —",
 }: {
@@ -18,6 +19,7 @@ export function ClientSelect({
   required?: boolean;
   /** After edit/new client, return here (e.g. /requests/uuid) */
   returnTo?: string;
+  newPath?: string;
   label?: string;
   emptyLabel?: string;
 }) {
@@ -26,7 +28,7 @@ export function ClientSelect({
       ? `/clients/${value}?returnTo=${encodeURIComponent(returnTo)}`
       : `/clients/${value}`
     : null;
-  const newHref = returnTo ? `/clients/new?returnTo=${encodeURIComponent(returnTo)}` : "/clients/new";
+  const newHref = returnTo ? `${newPath}?returnTo=${encodeURIComponent(returnTo)}` : newPath;
 
   return (
     <div>

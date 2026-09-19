@@ -13,6 +13,8 @@ import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { HomePage } from "@/pages/HomePage";
 import { ClientsListPage } from "@/pages/clients/ClientsListPage";
 import { ClientFormPage } from "@/pages/clients/ClientFormPage";
+import { CompaniesListPage } from "@/pages/companies/CompaniesListPage";
+import { CompanyFormPage } from "@/pages/companies/CompanyFormPage";
 import { RequestsListPage } from "@/pages/requests/RequestsListPage";
 import { RequestFormPage } from "@/pages/requests/RequestFormPage";
 import { QuotesListPage } from "@/pages/quotes/QuotesListPage";
@@ -29,6 +31,7 @@ import { ExpensesListPage } from "@/pages/expenses/ExpensesListPage";
 import { ExpenseFormPage } from "@/pages/expenses/ExpenseFormPage";
 import { WorkSettingsPage } from "@/pages/settings/WorkSettingsPage";
 import { TaxAccountingPage } from "@/pages/settings/TaxAccountingPage";
+import { ContactColumnsSettingsPage } from "@/pages/settings/ContactColumnsSettingsPage";
 import { ServicesListPage } from "@/pages/services/ServicesListPage";
 import { ServiceFormPage } from "@/pages/services/ServiceFormPage";
 import { SchedulePage } from "@/pages/schedule/SchedulePage";
@@ -64,6 +67,13 @@ export default function App() {
             <Route path="list" element={<ClientsListPage />} />
             <Route path="new" element={<ClientFormPage />} />
             <Route path=":id" element={<ClientFormPage />} />
+          </Route>
+
+          <Route path="companies" element={<Outlet />}>
+            <Route index element={<Navigate to="/companies/list" replace />} />
+            <Route path="list" element={<CompaniesListPage />} />
+            <Route path="new" element={<CompanyFormPage />} />
+            <Route path=":id" element={<CompanyFormPage />} />
           </Route>
 
           <Route path="suppliers" element={<Outlet />}>
@@ -131,6 +141,7 @@ export default function App() {
           <Route path="settings">
             <Route path="work" element={<WorkSettingsPage />} />
             <Route path="tax" element={<TaxAccountingPage />} />
+            <Route path="contacts" element={<ContactColumnsSettingsPage />} />
           </Route>
           <Route path="schedule" element={<SchedulePage />} />
           <Route path="website" element={<WebsitePage />} />

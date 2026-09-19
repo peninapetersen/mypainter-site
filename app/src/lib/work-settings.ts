@@ -2,6 +2,7 @@ import { requireUserId } from "@/lib/auth";
 import { DEFAULT_INVOICE_CONTRACT } from "@/lib/invoice-defaults";
 import { DEFAULT_QUOTE_TERMS } from "@/lib/line-items";
 import { supabase } from "@/lib/supabase";
+import { DEFAULT_CONTACT_LIST_COLUMNS, mergeContactListColumns, type ContactListColumnsConfig } from "@/lib/contact-list-columns";
 import type { WorkSettings } from "@/types/entities";
 
 export const ARRIVAL_WINDOWS = ["None", "15 min", "30 min", "1 hr", "2 hr", "3 hr", "4 hr"] as const;
@@ -43,6 +44,7 @@ export function defaultWorkSettings(): Omit<WorkSettings, "user_id" | "created_a
     gst_default_on_quotes: true,
     gst_default_on_invoices: true,
     default_tax_mode: "exclusive",
+    contact_list_columns: DEFAULT_CONTACT_LIST_COLUMNS,
   };
 }
 
@@ -52,7 +54,15 @@ export async function getWorkSettings(): Promise<WorkSettings> {
   if (error) throw error;
   if (data) {
     const defaults = defaultWorkSettings();
-    return { ...defaults, ...(data as WorkSettings), user_id: data.user_id, created_at: data.created_at, updated_at: data.updated_at };
+    const row = data as WorkSettings;
+    return {
+      ...defaults,
+      ...row,
+      contact_list_columns: mergeContactListColumns(row.contact_list_columns),
+      user_id: row.user_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
   }
   const defaults = defaultWorkSettings();
   const { data: created, error: insertErr } = await supabase

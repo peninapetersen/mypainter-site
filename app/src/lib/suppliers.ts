@@ -162,6 +162,13 @@ export async function updateSupplier(id: string, input: Partial<Supplier>): Prom
   return data as Supplier;
 }
 
+/** Light update for supplier list inline edit. */
+export async function patchSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier> {
+  const existing = await getSupplier(id);
+  if (!existing) throw new Error("Supplier not found");
+  return updateSupplier(id, { ...existing, ...patch });
+}
+
 export async function deleteSupplier(id: string): Promise<void> {
   const { error } = await supabase.from("mp_suppliers").delete().eq("id", id);
   if (error) throw error;

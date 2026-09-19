@@ -34,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: UserCircle,
     children: [
       { label: "Customers", path: "/clients/list" },
+      { label: "Companies", path: "/companies/list" },
       { label: "Suppliers", path: "/suppliers/list" },
       { label: "Contractors", path: "/contractors/list" },
     ],
@@ -63,6 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const NEW_MENU_LINKS = [
   { label: "Customer", path: "/clients/new" },
+  { label: "Company", path: "/companies/new" },
   { label: "Supplier", path: "/suppliers/new" },
   { label: "Contractor", path: "/contractors/new" },
   { label: "Request", path: "/requests" },
