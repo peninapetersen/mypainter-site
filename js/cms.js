@@ -50,12 +50,15 @@
     });
     const btn = document.getElementById("cms-edit-toggle");
     const hint = document.getElementById("cms-edit-hint");
+    const count = document.querySelectorAll("[data-block]").length;
     if (btn) btn.textContent = editMode ? "Stop editing" : "Edit text";
     if (hint) {
       hint.textContent = editMode
-        ? "Click yellow boxes to change text — click away to save"
-        : "Press Edit text, then click a yellow box (heading or intro)";
+        ? `Click a yellow box to edit (${count} on this page) — click away to save`
+        : "Press Edit text — works on every page while you're logged in";
     }
+    if (on) sessionStorage.setItem("mp-edit-mode", "1");
+    else sessionStorage.removeItem("mp-edit-mode");
   }
 
   function showToolbar() {
@@ -76,13 +79,10 @@
     });
 
     document.getElementById("cms-logout").addEventListener("click", async () => {
+      sessionStorage.removeItem("mp-edit-mode");
       await fetch("/api/auth/logout", { method: "POST" });
       location.reload();
     });
-
-    if (new URLSearchParams(location.search).get("edit") === "1") {
-      setEditMode(true);
-    }
   }
 
   async function loadBlocks() {
@@ -91,7 +91,8 @@
       const data = await res.json();
       for (const [key, content] of Object.entries(data.blocks || {})) {
         document.querySelectorAll(`[data-block="${key}"]`).forEach((el) => {
-          el.textContent = content;
+          if (el.dataset.blockHtml === "true") el.innerHTML = content;
+          else el.textContent = content;
         });
       }
     } catch {
@@ -104,7 +105,7 @@
       el.addEventListener("blur", async () => {
         if (!editMode || !isAdmin) return;
         const key = el.dataset.block;
-        const content = el.textContent.trim();
+        const content = el.dataset.blockHtml === "true" ? el.innerHTML.trim() : el.textContent.trim();
         el.classList.add("cms-saving");
         try {
           await fetch(`/api/content/${page}`, {
@@ -202,6 +203,12 @@
     await checkAdmin();
     if (isAdmin) {
       document.body.classList.add("cms-admin");
+      if (new URLSearchParams(location.search).get("edit") === "1") {
+        sessionStorage.setItem("mp-edit-mode", "1");
+      }
+      if (sessionStorage.getItem("mp-edit-mode") === "1") {
+        setEditMode(true);
+      }
     }
   });
 })();
