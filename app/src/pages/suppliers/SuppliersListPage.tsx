@@ -118,6 +118,9 @@ export function SuppliersListPage() {
             id: r.id,
             editHref: `/suppliers/${r.id}`,
             deleteLabel: supplierDisplayName(r),
+            avatarName: supplierDisplayName(r),
+            photoPath: r.logo_path,
+            avatarRounded: "lg" as const,
             values: supplierValues(r),
           }))}
           savingId={savingId}

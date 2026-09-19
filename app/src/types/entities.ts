@@ -95,6 +95,7 @@ export type Contractor = {
   hourly_rate: number;
   day_rate: number;
   photo_path: string;
+  website: string;
   notes: string;
   created_at: string;
   updated_at: string;

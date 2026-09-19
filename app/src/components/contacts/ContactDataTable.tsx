@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Pencil } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { ContactColumnDef } from "@/lib/contact-list-columns";
@@ -11,6 +12,9 @@ export type ContactTableRow = {
   id: string;
   editHref: string;
   deleteLabel: string;
+  avatarName: string;
+  photoPath?: string;
+  avatarRounded?: "full" | "lg";
   values: Record<string, string>;
   status?: "lead" | "active" | "inactive";
 };
@@ -60,6 +64,7 @@ export function ContactDataTable({
       <table className="w-full min-w-[640px] text-sm">
         <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
           <tr>
+            <th className="w-12 px-3 py-3" aria-label="Photo" />
             {columns.map((col) => (
               <th key={col.id} className="px-3 py-3">
                 {col.label}
@@ -71,6 +76,16 @@ export function ContactDataTable({
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} className="border-b last:border-0 hover:bg-slate-50/80">
+              <td className="px-3 py-2">
+                <Link to={row.editHref} title="Open record">
+                  <Avatar
+                    photoPath={row.photoPath}
+                    name={row.avatarName}
+                    size={36}
+                    rounded={row.avatarRounded ?? "full"}
+                  />
+                </Link>
+              </td>
               {columns.map((col) => {
                 const value = row.values[col.id] ?? "";
                 if (col.id === "status" && row.status) {

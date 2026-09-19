@@ -33,6 +33,7 @@ export const CONTACT_COLUMN_CATALOG: Record<ContactListKey, ContactColumnDef[]> 
   companies: [
     { id: "company_name", label: "Company name", editable: true },
     { id: "website", label: "Website", editable: true },
+    { id: "address", label: "Address", editable: true },
     { id: "phone", label: "Phone", editable: true },
     { id: "email", label: "Email", editable: true },
     { id: "status", label: "Status" },
@@ -59,7 +60,7 @@ export const CONTACT_COLUMN_CATALOG: Record<ContactListKey, ContactColumnDef[]> 
 
 export const DEFAULT_CONTACT_LIST_COLUMNS: ContactListColumnsConfig = {
   customers: { visible: ["first_name", "last_name", "company", "phone", "email", "status"] },
-  companies: { visible: ["company_name", "website", "phone", "email", "status"] },
+  companies: { visible: ["company_name", "website", "address", "status"] },
   suppliers: { visible: ["company_name", "name", "phone", "email", "website"] },
   contractors: { visible: ["company_name", "name", "trade", "phone", "hourly_rate"] },
 };
@@ -72,7 +73,12 @@ export function mergeContactListColumns(raw: unknown): ContactListColumnsConfig 
     const visible = obj[key]?.visible;
     if (Array.isArray(visible) && visible.length > 0) {
       const allowed = new Set(CONTACT_COLUMN_CATALOG[key].map((c) => c.id));
-      base[key].visible = visible.filter((id) => allowed.has(id));
+      let cols = visible.filter((id) => allowed.has(id));
+      if (key === "companies" && !cols.includes("address") && (cols.includes("phone") || cols.includes("email"))) {
+        const i = cols.findIndex((id) => id === "phone" || id === "email");
+        cols = [...cols.slice(0, i), "address", ...cols.slice(i).filter((id) => id !== "phone" && id !== "email")];
+      }
+      base[key].visible = cols;
     }
   }
   return base;

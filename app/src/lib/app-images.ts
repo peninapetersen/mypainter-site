@@ -120,7 +120,8 @@ export async function getGalleryImageUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
-export async function fetchSupplierLogoFromWebsite(website: string): Promise<{ path: string; previewUrl: string }> {
+/** Fetch favicon / og:image from a website URL and store in gallery. */
+export async function fetchLogoFromWebsite(website: string): Promise<{ path: string; previewUrl: string }> {
   const { data } = await getSupabase().auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Not signed in");
@@ -134,3 +135,6 @@ export async function fetchSupplierLogoFromWebsite(website: string): Promise<{ p
   if (!res.ok) throw new Error(body.error || "Could not fetch logo");
   return body as { path: string; previewUrl: string };
 }
+
+/** @deprecated use fetchLogoFromWebsite */
+export const fetchSupplierLogoFromWebsite = fetchLogoFromWebsite;

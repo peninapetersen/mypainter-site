@@ -1,8 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { ImageCropUpload } from "@/components/forms/ImageCropUpload";
+import { Avatar } from "@/components/ui/Avatar";
 import { FormSaveBar } from "@/components/ui/FormSaveBar";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
+import { fetchLogoFromWebsite } from "@/lib/app-images";
 import { deleteClient, emptyProperty, getClient, patchClient, saveClientBundle } from "@/lib/clients";
 import { formatSupabaseError } from "@/lib/supabase-errors";
 
@@ -13,11 +16,13 @@ export function CompanyFormPage() {
   const { showError } = useErrorBanner();
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [fetchingLogo, setFetchingLogo] = useState(false);
   const [photoPath, setPhotoPath] = useState("");
   const uploadFolderId = useMemo(() => (isNew ? crypto.randomUUID() : id!), [isNew, id]);
   const [form, setForm] = useState({
     company_name: "",
     website: "",
+    address: "",
     phone: "",
     email: "",
     notes: "",
@@ -32,6 +37,7 @@ export function CompanyFormPage() {
         setForm({
           company_name: row.company_name ?? "",
           website: row.website ?? "",
+          address: row.address ?? "",
           phone: row.phone ?? "",
           email: row.email ?? "",
           notes: row.notes ?? "",
@@ -42,6 +48,25 @@ export function CompanyFormPage() {
       .catch((e) => showError(e.message))
       .finally(() => setLoading(false));
   }, [id, isNew, showError]);
+
+  async function pullLogo() {
+    if (!form.website.trim()) {
+      showError("Enter a website URL first.");
+      return;
+    }
+    setFetchingLogo(true);
+    try {
+      const { path } = await fetchLogoFromWebsite(form.website.trim());
+      setPhotoPath(path);
+      if (!isNew && id) {
+        await patchClient(id, { photo_path: path });
+      }
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "Could not fetch logo");
+    } finally {
+      setFetchingLogo(false);
+    }
+  }
 
   async function persist(e?: FormEvent) {
     e?.preventDefault();
@@ -54,6 +79,7 @@ export function CompanyFormPage() {
       const payload = {
         company_name: form.company_name.trim(),
         website: form.website,
+        address: form.address,
         phone: form.phone,
         email: form.email,
         notes: form.notes,
@@ -66,7 +92,7 @@ export function CompanyFormPage() {
       if (isNew) {
         const { client } = await saveClientBundle({
           client: payload,
-          properties: [emptyProperty()],
+          properties: form.address.trim() ? [emptyProperty({ street_1: form.address, is_primary: true, is_billing: true })] : [emptyProperty()],
           contacts: [],
         });
         navigate(`/companies/${client.id}`);
@@ -93,6 +119,8 @@ export function CompanyFormPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
+  const displayName = form.company_name || "Company";
+
   return (
     <div className="pb-24">
       <div className="mb-6 flex items-start justify-between">
@@ -106,22 +134,24 @@ export function CompanyFormPage() {
         )}
       </div>
 
-      <h1 className="mb-6 text-2xl font-bold text-[var(--mp-navy)]">
-        {isNew ? "New company" : form.company_name || "Edit company"}
-      </h1>
+      <div className="mb-6 flex items-center gap-3">
+        <Avatar photoPath={photoPath} name={displayName} size={40} rounded="lg" />
+        <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New company" : displayName}</h1>
+      </div>
 
       <form onSubmit={persist} className="mx-auto max-w-lg space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         <ImageCropUpload
-          label="Logo / photo"
+          label="Logo"
           photoPath={photoPath}
           folder="contacts"
           folderId={uploadFolderId}
-          displayName={form.company_name || "Company"}
+          displayName={displayName}
           onChange={setPhotoPath}
           onUploaded={isNew ? undefined : (path) => patchClient(id!, { photo_path: path }).catch((e) => showError(e.message))}
           onError={showError}
           round={false}
         />
+
         <label className="block text-sm">
           <span className="mb-1 block font-semibold text-slate-700">Company name *</span>
           <input
@@ -131,16 +161,52 @@ export function CompanyFormPage() {
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
           />
         </label>
+
+        <div>
+          <p className="mb-2 text-sm font-semibold text-slate-700">Website &amp; logo</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="block min-w-[200px] flex-1 text-sm">
+              <span className="mb-1 block text-xs font-semibold text-slate-500">Website</span>
+              <input
+                type="url"
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="https://bunnings.co.nz"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={fetchingLogo || !form.website.trim()}
+              onClick={pullLogo}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={fetchingLogo ? "animate-spin" : ""} />
+              {fetchingLogo ? "Fetching…" : "Pull logo"}
+            </button>
+            {form.website.trim() && (
+              <a
+                href={form.website.startsWith("http") ? form.website : `https://${form.website}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 py-2 text-sm text-[var(--mp-orange)] hover:underline"
+              >
+                <ExternalLink size={14} /> Visit site
+              </a>
+            )}
+          </div>
+        </div>
+
         <label className="block text-sm">
-          <span className="mb-1 block font-semibold text-slate-700">Website</span>
+          <span className="mb-1 block font-semibold text-slate-700">Address</span>
           <input
-            type="url"
-            value={form.website}
-            onChange={(e) => setForm({ ...form, website: e.target.value })}
-            placeholder="https://"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            placeholder="Street, city"
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
           />
         </label>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="mb-1 block font-semibold text-slate-700">Phone</span>

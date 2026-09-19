@@ -14,6 +14,7 @@ function companyValues(c: Client): Record<string, string> {
   return {
     company_name: c.company_name ?? "",
     website: c.website ?? "",
+    address: c.address ?? "",
     phone: c.phone ?? "",
     email: c.email ?? "",
     status: c.status,
@@ -59,6 +60,7 @@ export function CompaniesListPage() {
     const patch: Partial<Client> = {};
     if (columnId === "company_name") patch.company_name = row.company_name;
     if (columnId === "website") patch.website = row.website;
+    if (columnId === "address") patch.address = row.address;
     if (columnId === "phone") patch.phone = row.phone;
     if (columnId === "email") patch.email = row.email;
 
@@ -111,6 +113,9 @@ export function CompaniesListPage() {
             id: c.id,
             editHref: `/companies/${c.id}`,
             deleteLabel: clientDisplayName(c),
+            avatarName: clientDisplayName(c),
+            photoPath: c.photo_path,
+            avatarRounded: "lg" as const,
             values: companyValues(c),
             status: c.status,
           }))}

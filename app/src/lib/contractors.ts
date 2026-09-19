@@ -27,6 +27,7 @@ export async function createContractor(input: Partial<Contractor>): Promise<Cont
       trade: "",
       hourly_rate: 0,
       day_rate: 0,
+      website: "",
       notes: "",
       ...input,
     })

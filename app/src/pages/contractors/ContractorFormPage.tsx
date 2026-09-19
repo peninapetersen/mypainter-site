@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { HardHat } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { ImageCropUpload } from "@/components/forms/ImageCropUpload";
+import { Avatar } from "@/components/ui/Avatar";
 import { FormSaveBar } from "@/components/ui/FormSaveBar";
-import { contractorDisplayName } from "@/lib/contractors";
+import { contractorDisplayName, createContractor, deleteContractor, getContractor, patchContractor, updateContractor } from "@/lib/contractors";
+import { fetchLogoFromWebsite } from "@/lib/app-images";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
-import { createContractor, deleteContractor, getContractor, updateContractor } from "@/lib/contractors";
 import { formatSupabaseError } from "@/lib/supabase-errors";
 
 export function ContractorFormPage() {
@@ -15,11 +16,13 @@ export function ContractorFormPage() {
   const { showError } = useErrorBanner();
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [fetchingLogo, setFetchingLogo] = useState(false);
   const [form, setForm] = useState({
     name: "",
     company_name: "",
     email: "",
     phone: "",
+    website: "",
     trade: "",
     hourly_rate: 0,
     day_rate: 0,
@@ -38,6 +41,7 @@ export function ContractorFormPage() {
           company_name: row.company_name,
           email: row.email,
           phone: row.phone,
+          website: row.website ?? "",
           trade: row.trade,
           hourly_rate: Number(row.hourly_rate) || 0,
           day_rate: Number(row.day_rate) || 0,
@@ -48,6 +52,25 @@ export function ContractorFormPage() {
       .catch((e) => showError(formatSupabaseError(e)))
       .finally(() => setLoading(false));
   }, [id, isNew, showError]);
+
+  async function pullLogo() {
+    if (!form.website.trim()) {
+      showError("Enter a website URL first.");
+      return;
+    }
+    setFetchingLogo(true);
+    try {
+      const { path } = await fetchLogoFromWebsite(form.website.trim());
+      setForm((f) => ({ ...f, photo_path: path }));
+      if (!isNew && id) {
+        await patchContractor(id, { photo_path: path });
+      }
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "Could not fetch logo");
+    } finally {
+      setFetchingLogo(false);
+    }
+  }
 
   async function persist(e?: FormEvent) {
     e?.preventDefault();
@@ -79,6 +102,8 @@ export function ContractorFormPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
+  const displayName = contractorDisplayName(form);
+
   return (
     <div className="pb-24">
       <div className="mb-6 flex items-start justify-between">
@@ -93,22 +118,62 @@ export function ContractorFormPage() {
       </div>
 
       <div className="mb-6 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
-          <HardHat size={22} />
-        </span>
-        <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New contractor" : "Edit contractor"}</h1>
+        <Avatar photoPath={form.photo_path} name={displayName} size={40} />
+        <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New contractor" : displayName}</h1>
       </div>
 
       <form onSubmit={persist} className="mx-auto max-w-lg space-y-4">
-        <ImageCropUpload
-          label="Photo"
-          photoPath={form.photo_path}
-          folder="contractors"
-          folderId={uploadFolderId}
-          displayName={contractorDisplayName(form) || "Crew photo"}
-          onChange={(photo_path) => setForm({ ...form, photo_path })}
-          onError={showError}
-        />
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <ImageCropUpload
+            label="Photo"
+            photoPath={form.photo_path}
+            folder="contractors"
+            folderId={uploadFolderId}
+            displayName={displayName || "Crew photo"}
+            onChange={(photo_path) => setForm({ ...form, photo_path })}
+            onUploaded={isNew ? undefined : (path) => patchContractor(id!, { photo_path: path }).catch((e) => showError(e.message))}
+            onError={showError}
+          />
+          <p className="mt-2 text-xs text-slate-500">Upload a headshot, or pull a logo from their website below.</p>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+          <div>
+            <p className="mb-2 text-sm font-semibold text-slate-700">Website &amp; logo</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block min-w-[200px] flex-1 text-sm">
+                <span className="mb-1 block text-xs font-semibold text-slate-500">Website</span>
+                <input
+                  type="url"
+                  value={form.website}
+                  onChange={(e) => setForm({ ...form, website: e.target.value })}
+                  placeholder="https://"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={fetchingLogo || !form.website.trim()}
+                onClick={pullLogo}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={fetchingLogo ? "animate-spin" : ""} />
+                {fetchingLogo ? "Fetching…" : "Pull logo"}
+              </button>
+              {form.website.trim() && (
+                <a
+                  href={form.website.startsWith("http") ? form.website : `https://${form.website}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 py-2 text-sm text-[var(--mp-orange)] hover:underline"
+                >
+                  <ExternalLink size={14} /> Visit site
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
         <label className="block text-sm">
           <span className="mb-1 block text-xs font-semibold text-slate-500">Company / trading name</span>
           <input

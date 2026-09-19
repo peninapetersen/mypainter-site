@@ -143,6 +143,9 @@ export function ClientsListPage() {
             id: c.id,
             editHref: `/clients/${c.id}`,
             deleteLabel: clientDisplayName(c),
+            avatarName: clientDisplayName(c),
+            photoPath: c.photo_path,
+            avatarRounded: "full" as const,
             values: customerValues(c, companyNames),
             status: c.status,
           }))}

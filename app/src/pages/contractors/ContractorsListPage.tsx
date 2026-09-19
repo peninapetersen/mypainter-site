@@ -110,6 +110,9 @@ export function ContractorsListPage() {
             id: r.id,
             editHref: `/contractors/${r.id}`,
             deleteLabel: contractorDisplayName(r),
+            avatarName: contractorDisplayName(r),
+            photoPath: r.photo_path,
+            avatarRounded: "full" as const,
             values: contractorValues(r),
           }))}
           savingId={savingId}

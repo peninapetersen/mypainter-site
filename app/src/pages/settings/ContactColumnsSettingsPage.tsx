@@ -60,7 +60,7 @@ export function ContactColumnsSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--mp-navy)]">Contact lists</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Choose which columns show on each Contacts menu list. Inline editing works on editable columns.
+            Choose which columns show on each Contacts menu list. Photo/logo always appears on the left. Inline editing works on editable columns.
           </p>
         </div>
 
