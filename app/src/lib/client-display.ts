@@ -1,10 +1,10 @@
 import type { Client, ClientProperty } from "@/types/entities";
 
 export function clientDisplayName(c: Pick<Client, "company_name" | "first_name" | "last_name" | "name">): string {
-  if (c.company_name.trim()) return c.company_name.trim();
+  if (c.company_name?.trim()) return c.company_name.trim();
   const person = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
   if (person) return person;
-  return c.name.trim() || "Unnamed client";
+  return c.name?.trim() || "Unnamed client";
 }
 
 export function formatPropertyOneLine(p: ClientProperty): string {

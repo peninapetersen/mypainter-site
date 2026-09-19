@@ -8,7 +8,7 @@ export function RequestNotesCard({
   notes: string;
   onChange: (notes: string) => void;
 }) {
-  const hasNotes = notes.trim().length > 0;
+  const hasNotes = (notes ?? "").trim().length > 0;
   const [editing, setEditing] = useState(hasNotes);
 
   return (

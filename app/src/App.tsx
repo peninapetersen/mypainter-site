@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Outlet, Route, Routes } from "react-router-dom";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBannerProvider } from "@/context/ErrorBannerContext";
@@ -36,30 +36,40 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="pipeline" element={<PlaceholderPage title="Pipeline" subtitle="Kanban board — Phase 4." />} />
 
-          <Route path="clients" element={<ClientsStartPage />} />
-          <Route path="clients/list" element={<ClientsListPage />} />
-          <Route path="clients/new" element={<ClientFormPage />} />
-          <Route path="clients/:id" element={<ClientFormPage />} />
+          <Route path="clients" element={<Outlet />}>
+            <Route index element={<ClientsStartPage />} />
+            <Route path="list" element={<ClientsListPage />} />
+            <Route path="new" element={<ClientFormPage />} />
+            <Route path=":id" element={<ClientFormPage />} />
+          </Route>
 
-          <Route path="requests" element={<RequestsStartPage />} />
-          <Route path="requests/list" element={<RequestsListPage />} />
-          <Route path="requests/new" element={<RequestFormPage />} />
-          <Route path="requests/:id" element={<RequestFormPage />} />
+          <Route path="requests" element={<Outlet />}>
+            <Route index element={<RequestsStartPage />} />
+            <Route path="list" element={<RequestsListPage />} />
+            <Route path="new" element={<RequestFormPage />} />
+            <Route path=":id" element={<RequestFormPage />} />
+          </Route>
 
-          <Route path="quotes" element={<QuotesStartPage />} />
-          <Route path="quotes/list" element={<QuotesListPage />} />
-          <Route path="quotes/new" element={<QuoteFormPage />} />
-          <Route path="quotes/:id" element={<QuoteFormPage />} />
+          <Route path="quotes" element={<Outlet />}>
+            <Route index element={<QuotesStartPage />} />
+            <Route path="list" element={<QuotesListPage />} />
+            <Route path="new" element={<QuoteFormPage />} />
+            <Route path=":id" element={<QuoteFormPage />} />
+          </Route>
 
-          <Route path="jobs" element={<JobsStartPage />} />
-          <Route path="jobs/list" element={<JobsListPage />} />
-          <Route path="jobs/new" element={<JobFormPage />} />
-          <Route path="jobs/:id" element={<JobFormPage />} />
+          <Route path="jobs" element={<Outlet />}>
+            <Route index element={<JobsStartPage />} />
+            <Route path="list" element={<JobsListPage />} />
+            <Route path="new" element={<JobFormPage />} />
+            <Route path=":id" element={<JobFormPage />} />
+          </Route>
 
-          <Route path="invoices" element={<InvoicesStartPage />} />
-          <Route path="invoices/list" element={<InvoicesListPage />} />
-          <Route path="invoices/new" element={<InvoiceFormPage />} />
-          <Route path="invoices/:id" element={<InvoiceFormPage />} />
+          <Route path="invoices" element={<Outlet />}>
+            <Route index element={<InvoicesStartPage />} />
+            <Route path="list" element={<InvoicesListPage />} />
+            <Route path="new" element={<InvoiceFormPage />} />
+            <Route path=":id" element={<InvoiceFormPage />} />
+          </Route>
 
           <Route path="expenses" element={<PlaceholderPage title="Expenses" subtitle="Phase 3 — receipts and GST boards." />} />
           <Route path="schedule" element={<PlaceholderPage title="Schedule" subtitle="Phase 4 — calendar." />} />
