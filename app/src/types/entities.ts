@@ -7,13 +7,25 @@ export type LineItem = {
   optional?: boolean;
 };
 
+export type CustomField = { label: string; value: string };
+
+export type CommunicationSettings = { email: boolean; sms: boolean };
+
 export type Client = {
   id: string;
   user_id: string;
   name: string;
+  title: string;
+  first_name: string;
+  last_name: string;
+  company_name: string;
   email: string;
   phone: string;
   address: string;
+  lead_source: string;
+  communication_settings: CommunicationSettings;
+  custom_fields: CustomField[];
+  billing_same_as_property: boolean;
   tags: string[];
   status: "lead" | "active" | "inactive";
   last_activity_at: string | null;
@@ -21,6 +33,44 @@ export type Client = {
   created_at: string;
   updated_at: string;
 };
+
+export type ClientProperty = {
+  id: string;
+  user_id: string;
+  client_id: string;
+  street_1: string;
+  street_2: string;
+  city: string;
+  region: string;
+  postal_code: string;
+  country: string;
+  tax_rate: string;
+  is_primary: boolean;
+  is_billing: boolean;
+  custom_fields: CustomField[];
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientContact = {
+  id: string;
+  user_id: string;
+  client_id: string;
+  property_id: string | null;
+  title: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string;
+  notes: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientPropertyInput = Omit<ClientProperty, "id" | "user_id" | "client_id" | "created_at" | "updated_at">;
+export type ClientContactInput = Omit<ClientContact, "id" | "user_id" | "client_id" | "created_at" | "updated_at">;
 
 export type Request = {
   id: string;

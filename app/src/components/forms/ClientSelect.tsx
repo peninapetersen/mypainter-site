@@ -1,3 +1,4 @@
+import { clientDisplayName } from "@/lib/client-display";
 import type { Client } from "@/types/entities";
 
 export function ClientSelect({
@@ -21,7 +22,7 @@ export function ClientSelect({
       <option value="">— Select client —</option>
       {clients.map((c) => (
         <option key={c.id} value={c.id}>
-          {c.name || c.email || "Unnamed client"}
+          {clientDisplayName(c)}
         </option>
       ))}
     </select>

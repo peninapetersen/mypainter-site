@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
+import { clientDisplayName } from "@/lib/client-display";
 import { listClients } from "@/lib/clients";
 import type { Client } from "@/types/entities";
 
@@ -41,6 +42,7 @@ export function ClientsListPage() {
                 <th className="px-4 py-3">Name</th>
                 <th className="hidden px-4 py-3 sm:table-cell">Phone</th>
                 <th className="hidden px-4 py-3 md:table-cell">Email</th>
+                <th className="hidden px-4 py-3 lg:table-cell">Lead source</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
@@ -49,11 +51,15 @@ export function ClientsListPage() {
                 <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <Link to={`/clients/${c.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
-                      {c.name || "Unnamed"}
+                      {clientDisplayName(c)}
                     </Link>
+                    {c.company_name && (c.first_name || c.last_name) && (
+                      <p className="text-xs text-slate-400">{[c.first_name, c.last_name].filter(Boolean).join(" ")}</p>
+                    )}
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">{c.phone || "—"}</td>
                   <td className="hidden px-4 py-3 md:table-cell">{c.email || "—"}</td>
+                  <td className="hidden px-4 py-3 lg:table-cell">{c.lead_source || "—"}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={c.status} />
                   </td>

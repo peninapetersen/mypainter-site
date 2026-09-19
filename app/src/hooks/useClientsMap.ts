@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { clientDisplayName } from "@/lib/client-display";
 import { listClients } from "@/lib/clients";
 import type { Client } from "@/types/entities";
 
@@ -13,6 +14,6 @@ export function useClientsMap() {
       .finally(() => setLoading(false));
   }, []);
 
-  const map = new Map(clients.map((c) => [c.id, c.name || c.email || "Client"]));
+  const map = new Map(clients.map((c) => [c.id, clientDisplayName(c)]));
   return { clients, map, loading };
 }
