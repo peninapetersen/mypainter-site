@@ -44,12 +44,29 @@
       const loginMsg = document.getElementById("login-msg");
       const loginBtn = document.getElementById("login-btn");
 
+      async function parseJson(res) {
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(
+            res.ok
+              ? "Unexpected server response"
+              : "Admin API not running yet — wait for Cloudflare deploy, then set ADMIN_PASSWORD in Pages settings.",
+          );
+        }
+      }
+
       async function checkAuth() {
-        const res = await fetch("/api/auth/me");
-        const data = await res.json();
-        if (data.authenticated) {
-          loginView.hidden = true;
-          dashView.hidden = false;
+        try {
+          const res = await fetch("/api/auth/me");
+          const data = await parseJson(res);
+          if (data.authenticated) {
+            loginView.hidden = true;
+            dashView.hidden = false;
+          }
+        } catch {
+          /* API not live yet */
         }
       }
 
@@ -64,7 +81,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ password: document.getElementById("password").value }),
           });
-          const data = await res.json();
+          const data = await parseJson(res);
           if (!res.ok) throw new Error(data.error || "Login failed");
           loginView.hidden = true;
           dashView.hidden = false;

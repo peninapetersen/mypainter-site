@@ -1,13 +1,8 @@
 name = "mypainter-site"
-compatibility_date = "2026-04-16"
+compatibility_date = "2024-04-01"
 pages_build_output_dir = "."
 
-[[d1_databases]]
-binding = "DB"
-database_name = "mypainter-quotes"
-database_id = "REPLACE_AFTER_CREATE"
-preview_database_id = "REPLACE_AFTER_CREATE"
-
-[[r2_buckets]]
-binding = "GALLERY"
-bucket_name = "mypainter-gallery"
+# D1 + R2 bindings are configured in Cloudflare Pages dashboard:
+#   Settings → Functions → D1 bindings → DB → mypainter-quotes
+#   Settings → Functions → R2 bindings → GALLERY → mypainter-gallery
+#   Settings → Environment variables → ADMIN_PASSWORD

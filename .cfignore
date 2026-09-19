@@ -1,0 +1,7 @@
+node_modules/
+.git/
+images_richard/
+*.heic
+*.HEIC
+*.AAE
+.DS_Store
