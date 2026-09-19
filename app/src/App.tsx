@@ -1,4 +1,10 @@
-import { Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes, useParams } from "react-router-dom";
+
+function LegacyJobsRedirect() {
+  const params = useParams();
+  const rest = params["*"];
+  return <Navigate to={rest ? `/leads/${rest}` : "/leads"} replace />;
+}
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBannerProvider } from "@/context/ErrorBannerContext";
@@ -17,12 +23,21 @@ import { QuoteFormPage } from "@/pages/quotes/QuoteFormPage";
 import { JobsStartPage } from "@/pages/jobs/JobsStartPage";
 import { JobsListPage } from "@/pages/jobs/JobsListPage";
 import { JobFormPage } from "@/pages/jobs/JobFormPage";
+import { JobsOnStartPage } from "@/pages/jobs-on/JobsOnStartPage";
+import { JobsOnListPage } from "@/pages/jobs-on/JobsOnListPage";
+import { JobsOnFormPage } from "@/pages/jobs-on/JobsOnFormPage";
 import { InvoicesStartPage } from "@/pages/invoices/InvoicesStartPage";
 import { InvoicesListPage } from "@/pages/invoices/InvoicesListPage";
 import { InvoiceFormPage } from "@/pages/invoices/InvoiceFormPage";
 import { ExpensesStartPage } from "@/pages/expenses/ExpensesStartPage";
 import { ExpensesListPage } from "@/pages/expenses/ExpensesListPage";
 import { ExpenseFormPage } from "@/pages/expenses/ExpenseFormPage";
+import { WorkSettingsPage } from "@/pages/settings/WorkSettingsPage";
+import { SchedulePage } from "@/pages/schedule/SchedulePage";
+import { WebsitePage } from "@/pages/website/WebsitePage";
+import { PipelinePage } from "@/pages/pipeline/PipelinePage";
+import { TimesheetsPage } from "@/pages/timesheets/TimesheetsPage";
+import { TimesheetFormPage } from "@/pages/timesheets/TimesheetFormPage";
 
 export default function App() {
   return (
@@ -37,7 +52,7 @@ export default function App() {
           }
         >
           <Route index element={<HomePage />} />
-          <Route path="pipeline" element={<PlaceholderPage title="Pipeline" subtitle="Kanban board — Phase 4." />} />
+          <Route path="pipeline" element={<PipelinePage />} />
 
           <Route path="clients" element={<Outlet />}>
             <Route index element={<ClientsStartPage />} />
@@ -60,11 +75,18 @@ export default function App() {
             <Route path=":id" element={<QuoteFormPage />} />
           </Route>
 
-          <Route path="jobs" element={<Outlet />}>
+          <Route path="leads" element={<Outlet />}>
             <Route index element={<JobsStartPage />} />
             <Route path="list" element={<JobsListPage />} />
             <Route path="new" element={<JobFormPage />} />
             <Route path=":id" element={<JobFormPage />} />
+          </Route>
+          <Route path="jobs/*" element={<LegacyJobsRedirect />} />
+
+          <Route path="jobs-on" element={<Outlet />}>
+            <Route index element={<JobsOnStartPage />} />
+            <Route path="list" element={<JobsOnListPage />} />
+            <Route path=":id" element={<JobsOnFormPage />} />
           </Route>
 
           <Route path="invoices" element={<Outlet />}>
@@ -80,8 +102,16 @@ export default function App() {
             <Route path="new" element={<ExpenseFormPage />} />
             <Route path=":id" element={<ExpenseFormPage />} />
           </Route>
-          <Route path="schedule" element={<PlaceholderPage title="Schedule" subtitle="Phase 4 — calendar." />} />
-          <Route path="timesheets" element={<PlaceholderPage title="Timesheets" subtitle="Phase 4 — crew check-in/out." />} />
+          <Route path="settings">
+            <Route path="work" element={<WorkSettingsPage />} />
+          </Route>
+          <Route path="schedule" element={<SchedulePage />} />
+          <Route path="website" element={<WebsitePage />} />
+          <Route path="timesheets" element={<Outlet />}>
+            <Route index element={<TimesheetsPage />} />
+            <Route path="new" element={<TimesheetFormPage />} />
+            <Route path=":id" element={<TimesheetFormPage />} />
+          </Route>
           <Route path="marketing" element={<PlaceholderPage title="Marketing" subtitle="Phase 5 — marketing hub." />} />
           <Route path="insights" element={<PlaceholderPage title="Insights" subtitle="Phase 5 — dashboards." />} />
           <Route path="insights/reports" element={<PlaceholderPage title="Reports" />} />

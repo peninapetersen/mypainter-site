@@ -33,7 +33,7 @@ export function HomePage() {
     { label: "Clients", value: stats.clients, to: "/clients/list" },
     { label: "Open requests", value: stats.requests, to: "/requests/list" },
     { label: "Quotes out", value: stats.quotes, to: "/quotes/list" },
-    { label: "Active jobs", value: stats.jobs, to: "/jobs/list" },
+    { label: "Active leads", value: stats.jobs, to: "/leads/list" },
     { label: "Unpaid invoices", value: stats.invoices, to: "/invoices/list" },
   ];
 

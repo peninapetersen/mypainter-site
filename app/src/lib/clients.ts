@@ -1,5 +1,6 @@
 import { requireUserId } from "@/lib/auth";
 import { buildClientName, buildLegacyAddress } from "@/lib/client-display";
+import { isMissingTableError } from "@/lib/supabase-errors";
 import { supabase } from "@/lib/supabase";
 import type { Client, ClientContact, ClientContactInput, ClientProperty, ClientPropertyInput } from "@/types/entities";
 
@@ -77,10 +78,14 @@ function clientPayload(input: Partial<Client>, primary?: ClientPropertyInput) {
   };
 }
 
-async function saveProperties(clientId: string, properties: ClientPropertyInput[]) {
+async function saveProperties(clientId: string, properties: ClientPropertyInput[]): Promise<boolean> {
   const user_id = await requireUserId();
-  await supabase.from("mp_client_properties").delete().eq("client_id", clientId);
-  if (properties.length === 0) return;
+  const del = await supabase.from("mp_client_properties").delete().eq("client_id", clientId);
+  if (del.error) {
+    if (isMissingTableError(del.error)) return false;
+    throw del.error;
+  }
+  if (properties.length === 0) return true;
   const rows = properties.map((p, i) => ({
     user_id,
     client_id: clientId,
@@ -88,13 +93,21 @@ async function saveProperties(clientId: string, properties: ClientPropertyInput[
     sort_order: i,
   }));
   const { error } = await supabase.from("mp_client_properties").insert(rows);
-  if (error) throw error;
+  if (error) {
+    if (isMissingTableError(error)) return false;
+    throw error;
+  }
+  return true;
 }
 
-async function saveContacts(clientId: string, contacts: ClientContactInput[]) {
+async function saveContacts(clientId: string, contacts: ClientContactInput[]): Promise<boolean> {
   const user_id = await requireUserId();
-  await supabase.from("mp_client_contacts").delete().eq("client_id", clientId);
-  if (contacts.length === 0) return;
+  const del = await supabase.from("mp_client_contacts").delete().eq("client_id", clientId);
+  if (del.error) {
+    if (isMissingTableError(del.error)) return false;
+    throw del.error;
+  }
+  if (contacts.length === 0) return true;
   const rows = contacts.map((c, i) => ({
     user_id,
     client_id: clientId,
@@ -108,15 +121,31 @@ async function saveContacts(clientId: string, contacts: ClientContactInput[]) {
     sort_order: i,
   }));
   const { error } = await supabase.from("mp_client_contacts").insert(rows);
-  if (error) throw error;
+  if (error) {
+    if (isMissingTableError(error)) return false;
+    throw error;
+  }
+  return true;
 }
+
+export function validateClientFields(client: Partial<Client>): string | null {
+  const hasName =
+    !!client.company_name?.trim() || !!client.first_name?.trim() || !!client.last_name?.trim();
+  if (!hasName) return "Enter a first name, last name, or company name before saving.";
+  return null;
+}
+
+export type SaveClientResult = { client: Client; propertiesSkipped: boolean };
 
 export async function saveClientBundle(input: {
   client: Partial<Client>;
   properties: ClientPropertyInput[];
   contacts: ClientContactInput[];
   existingId?: string;
-}): Promise<Client> {
+}): Promise<SaveClientResult> {
+  const validation = validateClientFields(input.client);
+  if (validation) throw new Error(validation);
+
   const primary = input.properties.find((p) => p.is_primary) ?? input.properties[0];
   const payload = clientPayload(input.client, primary);
 
@@ -128,9 +157,9 @@ export async function saveClientBundle(input: {
       .select("*")
       .single();
     if (error) throw error;
-    await saveProperties(input.existingId, input.properties);
+    const propsOk = await saveProperties(input.existingId, input.properties);
     await saveContacts(input.existingId, input.contacts);
-    return data as Client;
+    return { client: data as Client, propertiesSkipped: !propsOk };
   }
 
   const user_id = await requireUserId();
@@ -141,21 +170,47 @@ export async function saveClientBundle(input: {
     .single();
   if (error) throw error;
   const client = data as Client;
-  await saveProperties(client.id, input.properties);
-  await saveContacts(client.id, input.contacts);
-  return client;
+  try {
+    const propsOk = await saveProperties(client.id, input.properties);
+    await saveContacts(client.id, input.contacts);
+    return { client, propertiesSkipped: !propsOk };
+  } catch (e) {
+    await supabase.from("mp_clients").delete().eq("id", client.id);
+    throw e;
+  }
 }
 
 export async function createClient(input: Partial<Client>): Promise<Client> {
-  return saveClientBundle({
+  const { client } = await saveClientBundle({
     client: input,
     properties: input.address ? [emptyProperty({ street_1: input.address, is_primary: true, is_billing: true })] : [emptyProperty()],
     contacts: [],
   });
+  return client;
 }
 
 export async function updateClient(id: string, input: Partial<Client>): Promise<Client> {
-  return saveClientBundle({ client: input, properties: [emptyProperty()], contacts: [], existingId: id });
+  const { client } = await saveClientBundle({ client: input, properties: [emptyProperty()], contacts: [], existingId: id });
+  return client;
+}
+
+/** Light update — does not touch properties or contacts (for list inline edit). */
+export async function patchClient(id: string, patch: Partial<Client>): Promise<Client> {
+  const existing = await getClient(id);
+  if (!existing) throw new Error("Client not found");
+  const merged = { ...existing, ...patch };
+  const validation = validateClientFields(merged);
+  if (validation) throw new Error(validation);
+
+  const payload = clientPayload(merged);
+  const { data, error } = await supabase
+    .from("mp_clients")
+    .update({ ...payload, last_activity_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as Client;
 }
 
 export async function deleteClient(id: string): Promise<void> {

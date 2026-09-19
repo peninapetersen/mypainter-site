@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FileText, Plus } from "lucide-react";
 import { ClientSelect } from "@/components/forms/ClientSelect";
+import { FormSaveBar } from "@/components/ui/FormSaveBar";
 import { QuoteContractSection } from "@/components/forms/QuoteContractSection";
 import { QuoteLineItemsCard } from "@/components/forms/QuoteLineItemsCard";
 import { QuoteTotalsPanel } from "@/components/forms/QuoteTotalsPanel";
@@ -11,8 +12,10 @@ import { useClientsMap } from "@/hooks/useClientsMap";
 import { calcLineSubtotal, calcQuoteTotals, DEFAULT_QUOTE_TERMS, todayIsoDate, addDaysIsoDate } from "@/lib/line-items";
 import { getInvoice } from "@/lib/invoices";
 import { getRequest } from "@/lib/requests";
-import { createQuote, deleteQuote, getQuote, peekQuoteNumber, updateQuote } from "@/lib/quotes";
-import { createJob } from "@/lib/jobs";
+import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
+import { getJob, updateJob } from "@/lib/jobs";
+import { upsertPipelineForWorkflow } from "@/lib/pipeline";
+import { createQuote, deleteQuote, getQuote, peekQuoteNumber, quoteApprovalUrl, sendQuoteToCustomer, updateQuote } from "@/lib/quotes";
 import type { LineItem } from "@/types/entities";
 
 function SectionToolbar({ pills }: { pills: string[] }) {
@@ -44,9 +47,12 @@ export function QuoteFormPage() {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showTax, setShowTax] = useState(false);
   const [applyDefaultTerms, setApplyDefaultTerms] = useState(true);
+  const [approvalUrl, setApprovalUrl] = useState("");
+  const [sending, setSending] = useState(false);
   const [form, setForm] = useState({
     client_id: "",
     request_id: "" as string | null,
+    job_id: "" as string | null,
     title: "",
     quote_date: todayIsoDate(),
     valid_until: addDaysIsoDate(30),
@@ -64,9 +70,22 @@ export function QuoteFormPage() {
         if (isNew) {
           setPreviewNumber(await peekQuoteNumber());
           const fromRequest = search.get("fromRequest");
+          const fromJob = search.get("fromJob");
           const fromInvoice = search.get("fromInvoice");
           const newClient = search.get("newClient") === "1";
-          if (fromRequest) {
+          if (fromJob) {
+            const j = await getJob(fromJob);
+            if (j) {
+              setForm((f) => ({
+                ...f,
+                client_id: j.client_id ?? "",
+                request_id: j.request_id,
+                job_id: j.id,
+                title: j.title,
+                line_items: j.line_items.filter((li) => !li.isText),
+              }));
+            }
+          } else if (fromRequest) {
             const r = await getRequest(fromRequest);
             if (r) {
               setForm((f) => ({
@@ -105,6 +124,7 @@ export function QuoteFormPage() {
         setForm({
           client_id: q.client_id ?? "",
           request_id: q.request_id,
+          job_id: null,
           title: q.title,
           quote_date: q.quote_date ?? todayIsoDate(),
           valid_until: q.valid_until ?? addDaysIsoDate(30),
@@ -115,6 +135,9 @@ export function QuoteFormPage() {
           status: q.status,
           internal_notes: q.internal_notes,
         });
+        if (q.approval_token) {
+          setApprovalUrl(quoteApprovalUrl(q.approval_token, window.location.origin));
+        }
       } catch (e) {
         showError(e instanceof Error ? e.message : "Load failed");
       } finally {
@@ -139,6 +162,18 @@ export function QuoteFormPage() {
     try {
       if (isNew) {
         const q = await createQuote(payload);
+        if (form.job_id) {
+          await updateJob(form.job_id, { quote_id: q.id });
+        }
+        await upsertPipelineForWorkflow({
+          request_id: form.request_id,
+          quote_id: q.id,
+          job_id: form.job_id,
+          client_id: form.client_id || null,
+          title: form.title || q.number,
+          stage: "quote",
+          deal_value: q.total,
+        }).catch(() => {});
         navigate(`/quotes/${q.id}`);
       } else {
         await updateQuote(id!, payload);
@@ -156,31 +191,30 @@ export function QuoteFormPage() {
     await persist();
   }
 
+  async function sendToCustomer() {
+    if (isNew) {
+      showError("Save the quote first, then send it.");
+      return;
+    }
+    setSending(true);
+    try {
+      const { url } = await sendQuoteToCustomer(id!, window.location.origin);
+      setApprovalUrl(url);
+      setForm((f) => ({ ...f, status: "sent" }));
+      await navigator.clipboard.writeText(url).catch(() => {});
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not send quote");
+    } finally {
+      setSending(false);
+    }
+  }
+
   function convertToInvoice() {
     if (isNew) {
       showError("Save the quote first, then create an invoice.");
       return;
     }
     navigate(`/invoices/new?fromQuote=${id}`);
-  }
-
-  async function convertToJob() {
-    setSaving(true);
-    try {
-      const j = await createJob({
-        client_id: form.client_id || null,
-        quote_id: id!,
-        title: form.title,
-        line_items: form.line_items.filter((li) => !li.isText).map((li) => ({ ...li, unitCost: li.unitCost ?? 0 })),
-        status: "scheduled",
-      });
-      await updateQuote(id!, { status: "approved", gstRegistered: form.gstRegistered || showTax });
-      navigate(`/jobs/${j.id}`);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not create job");
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function onDelete() {
@@ -205,11 +239,16 @@ export function QuoteFormPage() {
         </Link>
         {!isNew && (
           <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={sendToCustomer}
+              disabled={saving || sending}
+              className="rounded-lg border border-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-[var(--mp-navy)]"
+            >
+              {sending ? "Sending…" : "Send to customer"}
+            </button>
             <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
               → Create invoice
-            </button>
-            <button type="button" onClick={convertToJob} disabled={saving} className="rounded-lg border border-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-[var(--mp-navy)]">
-              → Create job
             </button>
             <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
               Delete
@@ -218,12 +257,33 @@ export function QuoteFormPage() {
         )}
       </div>
 
+      {!isNew && <EntityWorkflowBar anchor={{ quoteId: id }} current="quote" />}
+      {isNew && form.job_id && <EntityWorkflowBar anchor={{ jobId: form.job_id }} current="quote" />}
+      {isNew && !form.job_id && form.request_id && <EntityWorkflowBar anchor={{ requestId: form.request_id }} current="quote" />}
+
       <div className="mb-6 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-500">
           <FileText size={22} />
         </span>
         <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New Quote" : previewNumber}</h1>
       </div>
+
+      {approvalUrl && (
+        <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <p className="font-semibold">Customer approval link</p>
+          <p className="mt-1 break-all text-xs">{approvalUrl}</p>
+          <p className="mt-2 text-xs text-sky-700">Link copied when you send. Customer clicks Approve → Jobs On.</p>
+        </div>
+      )}
+
+      <FormSaveBar
+        placement="top"
+        saveLabel="Save quote"
+        saving={saving}
+        onSave={persist}
+        cancelTo="/quotes"
+        hint="Nothing is saved until you tap Save quote."
+      />
 
       <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-6">
         <input
@@ -295,21 +355,7 @@ export function QuoteFormPage() {
         <RequestNotesCard notes={form.internal_notes} onChange={(internal_notes) => setForm({ ...form, internal_notes })} />
       </form>
 
-      <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-slate-200 bg-white px-4 py-3 md:left-56">
-        <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
-          <Link to="/quotes" className="rounded-lg border border-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-[var(--mp-orange)]">
-            Cancel
-          </Link>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => persist()}
-            className="rounded-lg bg-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save Quote"}
-          </button>
-        </div>
-      </div>
+      <FormSaveBar placement="bottom" saveLabel="Save quote" saving={saving} onSave={persist} cancelTo="/quotes" />
     </div>
   );
 }

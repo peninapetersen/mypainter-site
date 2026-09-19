@@ -1,5 +1,34 @@
 import { todayIsoDate } from "@/lib/line-items";
-import type { JobBillingFlags, JobVisit } from "@/types/entities";
+import type { JobBillingFlags, JobChecklist, JobChecklistItem, JobVisit } from "@/types/entities";
+
+export function newChecklistItem(label = ""): JobChecklistItem {
+  return { id: crypto.randomUUID(), label, checked: false, notes: "" };
+}
+
+export function newChecklist(title = ""): JobChecklist {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    items: [newChecklistItem()],
+  };
+}
+
+export function parseChecklists(raw: unknown[] | null | undefined): JobChecklist[] {
+  if (!raw?.length) return [];
+  return raw.map((c) => {
+    const cl = c as Partial<JobChecklist>;
+    const items = (cl.items ?? []).map((item) => ({
+      ...newChecklistItem(),
+      ...(item as Partial<JobChecklistItem>),
+      id: (item as JobChecklistItem).id || crypto.randomUUID(),
+    }));
+    return {
+      id: cl.id || crypto.randomUUID(),
+      title: cl.title ?? "",
+      items: items.length ? items : [newChecklistItem()],
+    };
+  });
+}
 
 export function defaultJobVisit(): JobVisit {
   return {

@@ -16,6 +16,7 @@ export function CreateStartPage({
   importHint,
   viewAllLabel,
   viewAllTo,
+  viewAllCount,
 }: {
   heading: string;
   description: string;
@@ -24,7 +25,12 @@ export function CreateStartPage({
   importHint?: string;
   viewAllLabel?: string;
   viewAllTo?: string;
+  /** Total items in the list — shown as "View all (n)" */
+  viewAllCount?: number | null;
 }) {
+  const countSuffix =
+    viewAllCount === null || viewAllCount === undefined ? " (…)" : ` (${viewAllCount})`;
+
   return (
     <div className="mx-auto max-w-3xl py-8 text-center">
       <h1 className="text-3xl font-bold text-[var(--mp-navy)]">{heading}</h1>
@@ -34,6 +40,7 @@ export function CreateStartPage({
         <p className="mt-4">
           <Link to={viewAllTo} className="text-sm font-semibold text-[var(--mp-orange)] underline">
             {viewAllLabel}
+            {countSuffix}
           </Link>
         </p>
       )}

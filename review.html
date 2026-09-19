@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leave a review — MyPainter</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; color: #0f3a5f; }
+    .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; background: #fff; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; margin: 1rem 0 0.35rem; color: #64748b; }
+    input, textarea, select { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+    button { margin-top: 1.25rem; width: 100%; padding: 0.75rem; background: #ea580c; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>How did we go?</h1>
+  <p style="color:#64748b">MyPainter — Richard Petersen</p>
+  <div id="app" class="card">Loading…</div>
+  <script>
+    const token = new URLSearchParams(location.search).get("token");
+    const app = document.getElementById("app");
+    if (!token) {
+      app.textContent = "Missing review link.";
+    } else {
+      fetch("/api/public/testimonial/" + encodeURIComponent(token))
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          const inv = data.invoice;
+          app.innerHTML = `
+            <p>Invoice <strong>${inv.number}</strong> — ${inv.subject || "Thank you for your business"}</p>
+            <label>Your name</label>
+            <input id="name" type="text" placeholder="Your name" />
+            <label>Rating</label>
+            <select id="rating">
+              <option value="5">5 — Excellent</option>
+              <option value="4">4 — Good</option>
+              <option value="3">3 — OK</option>
+              <option value="2">2 — Could improve</option>
+              <option value="1">1 — Poor</option>
+            </select>
+            <label>Your review</label>
+            <textarea id="review" rows="5" placeholder="What went well? Would you recommend MyPainter?"></textarea>
+            <button id="send">Submit review</button>
+          `;
+          document.getElementById("send").onclick = () => {
+            const customer_name = document.getElementById("name").value.trim();
+            const review_text = document.getElementById("review").value.trim();
+            const rating = document.getElementById("rating").value;
+            if (!customer_name || !review_text) {
+              alert("Please add your name and review.");
+              return;
+            }
+            document.getElementById("send").disabled = true;
+            fetch("/api/public/testimonial/" + encodeURIComponent(token), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ customer_name, review_text, rating }),
+            })
+              .then((r) => r.json())
+              .then((d) => {
+                if (d.error) throw new Error(d.error);
+                app.innerHTML = '<div class="ok"><strong>Thank you!</strong> Your review means a lot to Richard.</div>';
+              })
+              .catch((e) => {
+                alert(e.message || "Submit failed");
+                document.getElementById("send").disabled = false;
+              });
+          };
+        })
+        .catch((e) => { app.textContent = e.message || "Could not load."; });
+    }
+  </script>
+</body>
+</html>

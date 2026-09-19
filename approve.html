@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Approve quote — MyPainter</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #0f3a5f; }
+    .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; background: #fff; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+    td { padding: 0.35rem 0; border-bottom: 1px solid #f1f5f9; }
+    .actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    button { padding: 0.75rem 1.25rem; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; }
+    .approve { background: #ea580c; color: #fff; }
+    .decline { background: #f1f5f9; color: #475569; }
+    .muted { color: #64748b; font-size: 0.875rem; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>MyPainter quote</h1>
+  <p class="muted">Richard Petersen — Whangarei</p>
+  <div id="app" class="card">Loading quote…</div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    const app = document.getElementById("app");
+
+    if (!token) {
+      app.textContent = "Missing quote link.";
+    } else {
+      fetch("/api/public/quote-approval/" + encodeURIComponent(token))
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          const q = data.quote;
+          if (q.status === "approved") {
+            app.innerHTML = '<div class="ok"><strong>Already approved.</strong> Richard will be in touch to schedule the work.</div>';
+            return;
+          }
+          if (q.status === "declined") {
+            app.innerHTML = "<p>This quote was declined.</p>";
+            return;
+          }
+          const lines = (q.line_items || [])
+            .filter((li) => !li.isText && !li.optional)
+            .map((li) => `<tr><td>${li.name || "Item"}</td><td style="text-align:right">${li.qty} × $${Number(li.unitPrice).toFixed(2)}</td></tr>`)
+            .join("");
+          app.innerHTML = `
+            <h2>${q.title || q.number}</h2>
+            <p class="muted">Quote ${q.number}${q.valid_until ? " · Valid until " + q.valid_until : ""}</p>
+            <table>${lines}</table>
+            <p><strong>Total: $${Number(q.total).toFixed(2)}</strong> (incl. GST where shown)</p>
+            <p class="muted">${q.terms || ""}</p>
+            <div class="actions">
+              <button class="approve" id="approve">Approve quote</button>
+              <button class="decline" id="decline">Decline</button>
+            </div>
+          `;
+          document.getElementById("approve").onclick = () => post("approve");
+          document.getElementById("decline").onclick = () => post("decline");
+        })
+        .catch((e) => { app.textContent = e.message || "Could not load quote."; });
+
+      function post(action) {
+        app.querySelector(".actions")?.remove();
+        app.insertAdjacentHTML("beforeend", "<p>Saving…</p>");
+        fetch("/api/public/quote-approval/" + encodeURIComponent(token), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.error) throw new Error(data.error);
+            if (action === "approve") {
+              app.innerHTML = '<div class="ok"><strong>Thank you — quote approved.</strong> Richard will contact you to confirm start dates.</div>';
+            } else {
+              app.innerHTML = "<p>Quote declined. Richard has been notified.</p>";
+            }
+          })
+          .catch((e) => { app.textContent = e.message || "Something went wrong."; });
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Wallet } from "lucide-react";
+import { ExpenseMaterialPicker } from "@/components/forms/ExpenseMaterialPicker";
 import { ExpenseReceiptScan } from "@/components/forms/ExpenseReceiptScan";
+import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import {
   EXPENSE_CATEGORIES,
@@ -12,25 +14,41 @@ import {
   getExpense,
   updateExpense,
 } from "@/lib/expenses";
-import { listJobs } from "@/lib/jobs";
+import {
+  EXPENSE_CATEGORY_CODES,
+  EXPENSE_MATERIAL_PRESETS,
+  findMaterialPreset,
+  type ExpenseMaterialPreset,
+} from "@/lib/expense-materials";
+import { getInvoice, listInvoices } from "@/lib/invoices";
+import { getJob, listJobs } from "@/lib/jobs";
+import { getQuote, listQuotes } from "@/lib/quotes";
 import { todayIsoDate } from "@/lib/line-items";
 import { formatCurrency } from "@/lib/nz";
 import { getReceiptImageUrl, uploadReceiptImage } from "@/lib/receipt-images";
-import type { Expense, ExpenseCategory, Job, ReceiptScanResult } from "@/types/entities";
+import type { Expense, ExpenseCategory, Invoice, Job, Quote, ReceiptScanResult } from "@/types/entities";
 
 export function ExpenseFormPage() {
   const { id } = useParams();
+  const [search] = useSearchParams();
   const isNew = !id || id === "new";
   const navigate = useNavigate();
   const { showError } = useErrorBanner();
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [scanned, setScanned] = useState(false);
+  const hasLink = !!(search.get("fromJob") || search.get("fromQuote") || search.get("fromJobsOn") || search.get("fromInvoice"));
+  const [manualEntry, setManualEntry] = useState(hasLink);
+  const [scanned, setScanned] = useState(hasLink);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [form, setForm] = useState({
-    job_id: "",
+    job_id: search.get("fromJob") ?? "",
+    quote_id: search.get("fromQuote") ?? "",
+    jobs_on_id: search.get("fromJobsOn") ?? "",
+    invoice_id: search.get("fromInvoice") ?? "",
     item_name: "",
     description: "",
     merchant: "",
@@ -46,8 +64,66 @@ export function ExpenseFormPage() {
   });
 
   useEffect(() => {
-    listJobs().then(setJobs).catch(() => setJobs([]));
+    Promise.all([listJobs(), listQuotes(), listInvoices()])
+      .then(([j, q, inv]) => {
+        setJobs(j);
+        setQuotes(q);
+        setInvoices(inv);
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!isNew) return;
+    const fromInvoice = search.get("fromInvoice");
+    const fromQuote = search.get("fromQuote");
+    const fromJob = search.get("fromJob");
+
+    if (fromInvoice) {
+      getInvoice(fromInvoice)
+        .then((inv) => {
+          if (!inv) return;
+          setForm((f) => ({
+            ...f,
+            invoice_id: inv.id,
+            job_id: inv.job_id ?? f.job_id,
+            jobs_on_id: inv.jobs_on_id ?? f.jobs_on_id,
+            quote_id: inv.quote_id ?? f.quote_id,
+          }));
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (fromQuote) {
+      getQuote(fromQuote)
+        .then(async (q) => {
+          if (!q) return;
+          const jobs = await listJobs().catch(() => [] as Job[]);
+          const linkedJob = jobs.find((j) => j.quote_id === q.id) ?? null;
+          setForm((f) => ({
+            ...f,
+            quote_id: q.id,
+            job_id: linkedJob?.id ?? f.job_id,
+          }));
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (fromJob) {
+      getJob(fromJob)
+        .then((j) => {
+          if (!j) return;
+          setForm((f) => ({
+            ...f,
+            job_id: j.id,
+            quote_id: j.quote_id ?? f.quote_id,
+          }));
+        })
+        .catch(() => {});
+    }
+  }, [isNew, search]);
 
   useEffect(() => {
     if (isNew) return;
@@ -56,6 +132,8 @@ export function ExpenseFormPage() {
         if (!e) throw new Error("Expense not found");
         setForm({
           job_id: e.job_id ?? "",
+          quote_id: e.quote_id ?? "",
+          invoice_id: e.invoice_id ?? "",
           item_name: e.item_name,
           description: e.description,
           merchant: e.merchant,
@@ -84,20 +162,65 @@ export function ExpenseFormPage() {
     setReceiptFile(file);
     setReceiptPreview(URL.createObjectURL(file));
     setScanned(true);
+    setManualEntry(false);
     setForm((f) => ({
       ...f,
       ...expenseFromScan(scan, f.receipt_path, raw),
       job_id: f.job_id,
+      quote_id: f.quote_id,
+      invoice_id: f.invoice_id,
+    }));
+  }
+
+  function applyMaterialPreset(preset: ExpenseMaterialPreset) {
+    setScanned(true);
+    setManualEntry(true);
+    setForm((f) => ({
+      ...f,
+      item_name: preset.item_name,
+      description: preset.description,
+      category: preset.category,
+      accounting_code: preset.accounting_code,
+    }));
+  }
+
+  function onItemNameChange(item_name: string) {
+    const preset = findMaterialPreset(item_name);
+    setForm((f) => ({
+      ...f,
+      item_name,
+      ...(preset
+        ? {
+            description: preset.description,
+            category: preset.category,
+            accounting_code: preset.accounting_code,
+          }
+        : {}),
+    }));
+  }
+
+  function onCategoryChange(category: ExpenseCategory) {
+    setForm((f) => ({
+      ...f,
+      category,
+      accounting_code: f.accounting_code.trim() || EXPENSE_CATEGORY_CODES[category],
     }));
   }
 
   async function persist(e?: FormEvent) {
     e?.preventDefault();
+    if (!form.item_name.trim()) {
+      showError("Add an item name — tap a material above or type one in.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         ...form,
         job_id: form.job_id || null,
+        quote_id: form.quote_id || null,
+        jobs_on_id: form.jobs_on_id || null,
+        invoice_id: form.invoice_id || null,
         amount: Number(form.amount),
         gst_amount: Number(form.gst_amount),
       };
@@ -119,7 +242,15 @@ export function ExpenseFormPage() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
-      showError(msg.includes("item_name") || msg.includes("ai_extracted") ? `${msg} — run migration 004 in Supabase first.` : msg);
+      const needsMigration =
+        /item_name|ai_extracted|quote_id|invoice_id|accounting_code|merchant|gst_amount|column|invalid input syntax for type date/i.test(
+          msg,
+        );
+      showError(
+        needsMigration
+          ? `${msg} — run migrations 004 and 011 in Supabase SQL editor, then retry.`
+          : msg,
+      );
     } finally {
       setSaving(false);
     }
@@ -150,6 +281,17 @@ export function ExpenseFormPage() {
         )}
       </div>
 
+      {(form.job_id || form.quote_id || form.invoice_id) && (
+        <EntityWorkflowBar
+          anchor={{
+            jobId: form.job_id || undefined,
+            quoteId: form.quote_id || undefined,
+            invoiceId: form.invoice_id || undefined,
+          }}
+          current="expense"
+        />
+      )}
+
       <div className="mb-6 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
           <Wallet size={22} />
@@ -158,13 +300,43 @@ export function ExpenseFormPage() {
       </div>
 
       <form onSubmit={persist} className="mx-auto max-w-lg space-y-5">
-        {isNew && !scanned && <ExpenseReceiptScan onScanned={applyScan} onError={showError} disabled={saving} />}
+        {isNew && !scanned && (
+          <>
+            {hasLink && (
+              <>
+                <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                  Linked to this job — pick a material below or scan a receipt.
+                </div>
+                <ExpenseMaterialPicker onPick={applyMaterialPreset} />
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-[var(--mp-orange)] underline"
+                  onClick={() => {
+                    setScanned(true);
+                    setManualEntry(true);
+                  }}
+                >
+                  Enter expense manually (no receipt)
+                </button>
+              </>
+            )}
+            {!hasLink && <ExpenseReceiptScan onScanned={applyScan} onError={showError} disabled={saving} />}
+          </>
+        )}
 
         {scanned && (
           <>
-            {isNew && (
+            {isNew && manualEntry && !receiptPreview && (
+              <>
+                <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                  Pick a material or fill in the details below, then save.
+                </div>
+                <ExpenseMaterialPicker onPick={applyMaterialPreset} />
+              </>
+            )}
+            {isNew && receiptPreview && (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                Receipt read — check the details below, then save. No typing required unless something looks wrong.
+                Receipt read — check the details below, then save.
               </div>
             )}
 
@@ -199,10 +371,17 @@ export function ExpenseFormPage() {
             <label className="block text-sm">
               <span className="mb-1 block text-xs font-semibold text-slate-500">Item name</span>
               <input
+                list="expense-materials"
                 value={form.item_name}
-                onChange={(e) => setForm({ ...form, item_name: e.target.value })}
+                onChange={(e) => onItemNameChange(e.target.value)}
+                placeholder="e.g. Charcoal Paint"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
               />
+              <datalist id="expense-materials">
+                {EXPENSE_MATERIAL_PRESETS.map((p) => (
+                  <option key={p.item_name} value={p.item_name} />
+                ))}
+              </datalist>
             </label>
 
             <label className="block text-sm">
@@ -231,7 +410,7 @@ export function ExpenseFormPage() {
             </label>
 
             <label className="block text-sm">
-              <span className="mb-1 block text-xs font-semibold text-slate-500">Search jobs</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-500">Link to job</span>
               <select
                 value={form.job_id}
                 onChange={(e) => setForm({ ...form, job_id: e.target.value })}
@@ -241,6 +420,38 @@ export function ExpenseFormPage() {
                 {jobs.map((j) => (
                   <option key={j.id} value={j.id}>
                     {j.number} — {j.title || "Untitled job"}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold text-slate-500">Link to quote</span>
+              <select
+                value={form.quote_id}
+                onChange={(e) => setForm({ ...form, quote_id: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              >
+                <option value="">— No quote —</option>
+                {quotes.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.number} — {q.title || "Untitled quote"}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold text-slate-500">Link to invoice</span>
+              <select
+                value={form.invoice_id}
+                onChange={(e) => setForm({ ...form, invoice_id: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              >
+                <option value="">— No invoice —</option>
+                {invoices.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.number} — {inv.subject || "Untitled invoice"}
                   </option>
                 ))}
               </select>
@@ -259,7 +470,7 @@ export function ExpenseFormPage() {
               <span className="mb-1 block text-xs font-semibold text-slate-500">Category</span>
               <select
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as ExpenseCategory })}
+                onChange={(e) => onCategoryChange(e.target.value as ExpenseCategory)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
               >
                 {EXPENSE_CATEGORIES.map((c) => (

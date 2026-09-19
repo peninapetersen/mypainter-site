@@ -11,11 +11,32 @@ import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { DEFAULT_INVOICE_CONTRACT, PAYMENT_TERMS_OPTIONS, displayInvoiceNumber } from "@/lib/invoice-defaults";
 import { calcLineSubtotal, calcQuoteTotals, todayIsoDate } from "@/lib/line-items";
-import { createInvoice, deleteInvoice, getInvoice, peekInvoiceNumber, updateInvoice } from "@/lib/invoices";
-import { getJob } from "@/lib/jobs";
+import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
+import { listClients } from "@/lib/clients";
+import {
+  createInvoice,
+  deleteInvoice,
+  getInvoice,
+  markInvoicePaid,
+  peekInvoiceNumber,
+  prepareInvoiceForCustomer,
+  updateInvoice,
+} from "@/lib/invoices";
+import { upsertPipelineForWorkflow } from "@/lib/pipeline";
+import { getJobsOn } from "@/lib/jobs-on";
+import { getJob, listJobs } from "@/lib/jobs";
 import { getQuote } from "@/lib/quotes";
 import { getRequest } from "@/lib/requests";
-import type { LineItem } from "@/types/entities";
+import { getWorkSettings } from "@/lib/work-settings";
+import type { Client, LineItem, WorkSettings } from "@/types/entities";
+
+function paymentTermsForClient(ws: WorkSettings | null, clientId: string, clientsList: Client[]): string {
+  if (!ws) return PAYMENT_TERMS_OPTIONS[0];
+  if (!clientId) return ws.payment_terms_residential;
+  const client = clientsList.find((c) => c.id === clientId);
+  const isCommercial = !!(client?.company_name?.trim());
+  return isCommercial ? ws.payment_terms_commercial : ws.payment_terms_residential;
+}
 
 function SectionToolbar({ pills }: { pills: string[] }) {
   return (
@@ -47,14 +68,16 @@ export function InvoiceFormPage() {
   const [showDiscount, setShowDiscount] = useState(false);
   const [showTax, setShowTax] = useState(false);
   const [applyDefaultContract, setApplyDefaultContract] = useState(true);
+  const [testimonialUrl, setTestimonialUrl] = useState("");
   const [form, setForm] = useState({
     client_id: "",
     job_id: "" as string | null,
+    jobs_on_id: "" as string | null,
     quote_id: "" as string | null,
     request_id: "" as string | null,
     subject: "For Services Rendered",
     issued_date: todayIsoDate(),
-    payment_terms: PAYMENT_TERMS_OPTIONS[0],
+    payment_terms: PAYMENT_TERMS_OPTIONS[0] as string,
     line_items: [] as LineItem[],
     discount: 0,
     gstRegistered: false,
@@ -65,23 +88,54 @@ export function InvoiceFormPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
         if (isNew) {
+          const [ws, clientList, jobs] = await Promise.all([
+            getWorkSettings().catch(() => null),
+            clients.length ? Promise.resolve(clients) : listClients(),
+            listJobs().catch(() => []),
+          ]);
+          if (cancelled) return;
           setPreviewNumber(await peekInvoiceNumber());
           const fromJob = search.get("fromJob");
+          const fromJobsOn = search.get("fromJobsOn");
           const fromQuote = search.get("fromQuote");
           const fromRequest = search.get("fromRequest");
 
-          if (fromJob) {
-            const j = await getJob(fromJob);
-            if (j) {
+          const subjectDefault = ws?.invoice_subject_default ?? "For Services Rendered";
+          const useJobTitle = ws?.invoice_use_job_title ?? true;
+
+          if (fromJobsOn) {
+            const on = await getJobsOn(fromJobsOn);
+            if (cancelled) return;
+            if (on) {
+              const clientId = on.client_id ?? "";
               setForm((f) => ({
                 ...f,
-                client_id: j.client_id ?? "",
+                client_id: clientId,
+                jobs_on_id: on.id,
+                job_id: on.lead_id,
+                quote_id: on.quote_id,
+                request_id: on.request_id,
+                subject: useJobTitle && on.title ? on.title : subjectDefault,
+                payment_terms: paymentTermsForClient(ws, clientId, clientList),
+                line_items: on.line_items.filter((li) => !li.isText),
+              }));
+            }
+          } else if (fromJob) {
+            const j = await getJob(fromJob);
+            if (cancelled) return;
+            if (j) {
+              const clientId = j.client_id ?? "";
+              setForm((f) => ({
+                ...f,
+                client_id: clientId,
                 job_id: j.id,
                 quote_id: j.quote_id,
-                subject: j.title || f.subject,
+                subject: useJobTitle && j.title ? j.title : subjectDefault,
+                payment_terms: paymentTermsForClient(ws, clientId, clientList),
                 line_items: j.line_items.filter((li) => !li.isText),
                 gstRegistered: !!j.billing_flags?.gstRegistered,
               }));
@@ -89,13 +143,18 @@ export function InvoiceFormPage() {
             }
           } else if (fromQuote) {
             const q = await getQuote(fromQuote);
+            if (cancelled) return;
             if (q) {
+              const linkedJob = jobs.find((j) => j.quote_id === q.id) ?? null;
+              const clientId = q.client_id ?? "";
               setForm((f) => ({
                 ...f,
-                client_id: q.client_id ?? "",
+                client_id: clientId,
+                job_id: linkedJob?.id ?? null,
                 quote_id: q.id,
                 request_id: q.request_id,
-                subject: q.title || f.subject,
+                subject: useJobTitle && q.title ? q.title : subjectDefault,
+                payment_terms: paymentTermsForClient(ws, clientId, clientList),
                 line_items: q.line_items.filter((li) => !li.isText),
                 discount: Number(q.discount),
                 gstRegistered: Number(q.gst) > 0,
@@ -106,15 +165,24 @@ export function InvoiceFormPage() {
             }
           } else if (fromRequest) {
             const r = await getRequest(fromRequest);
+            if (cancelled) return;
             if (r) {
+              const clientId = r.client_id ?? "";
               setForm((f) => ({
                 ...f,
-                client_id: r.client_id ?? "",
+                client_id: clientId,
                 request_id: r.id,
-                subject: r.title || f.subject,
+                subject: useJobTitle && r.title ? r.title : subjectDefault,
+                payment_terms: paymentTermsForClient(ws, clientId, clientList),
                 line_items: r.line_items.filter((li) => !li.isText),
               }));
             }
+          } else {
+            setForm((f) => ({
+              ...f,
+              subject: subjectDefault,
+              payment_terms: ws?.payment_terms_residential ?? PAYMENT_TERMS_OPTIONS[0],
+            }));
           }
           setLoading(false);
           return;
@@ -126,9 +194,13 @@ export function InvoiceFormPage() {
         setShowTax(Number(inv.gst) > 0);
         setShowClientMessage(!!inv.client_message?.trim());
         setShowContract(!!inv.contract?.trim());
+        if (inv.testimonial_token) {
+          setTestimonialUrl(`${window.location.origin}/review.html?token=${inv.testimonial_token}`);
+        }
         setForm({
           client_id: inv.client_id ?? "",
           job_id: inv.job_id,
+          jobs_on_id: inv.jobs_on_id,
           quote_id: inv.quote_id,
           request_id: inv.request_id,
           subject: inv.subject,
@@ -143,12 +215,15 @@ export function InvoiceFormPage() {
           status: inv.status,
         });
       } catch (e) {
-        showError(e instanceof Error ? e.message : "Load failed");
+        if (!cancelled) showError(e instanceof Error ? e.message : "Load failed");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [id, isNew, search, showError]);
 
   const subtotal = calcLineSubtotal(form.line_items);
@@ -161,6 +236,7 @@ export function InvoiceFormPage() {
       ...form,
       client_id: form.client_id || null,
       job_id: form.job_id || null,
+      jobs_on_id: form.jobs_on_id || null,
       quote_id: form.quote_id || null,
       request_id: form.request_id || null,
       ...totals,
@@ -170,6 +246,17 @@ export function InvoiceFormPage() {
     try {
       if (isNew) {
         const inv = await createInvoice(payload);
+        await upsertPipelineForWorkflow({
+          request_id: form.request_id,
+          quote_id: form.quote_id,
+          job_id: form.job_id,
+          jobs_on_id: form.jobs_on_id,
+          invoice_id: inv.id,
+          client_id: form.client_id || null,
+          title: form.subject || inv.number,
+          stage: "invoiced",
+          deal_value: inv.total,
+        }).catch(() => {});
         navigate(`/invoices/${inv.id}`);
       } else {
         await updateInvoice(id!, payload);
@@ -177,7 +264,9 @@ export function InvoiceFormPage() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
-      showError(msg.includes("quote_id") || msg.includes("client_message") ? `${msg} — run migration 003 in Supabase first.` : msg);
+      const needsMigration =
+        /quote_id|request_id|client_message|contract|discount|invalid input syntax for type date|column/i.test(msg);
+      showError(needsMigration ? `${msg} — run migration 003 in Supabase SQL editor, then retry.` : msg);
     } finally {
       setSaving(false);
     }
@@ -186,6 +275,42 @@ export function InvoiceFormPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     await persist();
+  }
+
+  async function markPaid() {
+    if (!id || isNew) return;
+    setSaving(true);
+    try {
+      await markInvoicePaid(id);
+      setForm((f) => ({ ...f, status: "paid" }));
+      await upsertPipelineForWorkflow({
+        invoice_id: id,
+        jobs_on_id: form.jobs_on_id,
+        quote_id: form.quote_id,
+        job_id: form.job_id,
+        title: form.subject || previewNumber,
+        stage: "paid",
+        deal_value: totals.total,
+      }).catch(() => {});
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not mark paid");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copyTestimonialLink() {
+    if (!id || isNew) return;
+    setSaving(true);
+    try {
+      const { testimonialUrl: url } = await prepareInvoiceForCustomer(id, window.location.origin);
+      setTestimonialUrl(url);
+      await navigator.clipboard.writeText(url).catch(() => {});
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not create review link");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function convertToQuoteNewCustomer() {
@@ -212,6 +337,30 @@ export function InvoiceFormPage() {
         </Link>
         {!isNew && (
           <div className="flex flex-wrap justify-end gap-2">
+            {form.status !== "paid" && (
+              <button
+                type="button"
+                onClick={markPaid}
+                disabled={saving}
+                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white"
+              >
+                Mark paid
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={copyTestimonialLink}
+              disabled={saving}
+              className="rounded-lg border border-violet-300 px-3 py-2 text-sm font-semibold text-violet-700"
+            >
+              Review link
+            </button>
+            <Link
+              to={`/expenses/new?fromInvoice=${id}`}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+            >
+              + Expense
+            </Link>
             <button
               type="button"
               onClick={convertToQuoteNewCustomer}
@@ -226,6 +375,26 @@ export function InvoiceFormPage() {
           </div>
         )}
       </div>
+
+      {!isNew && <EntityWorkflowBar anchor={{ invoiceId: id }} current="invoice" />}
+      {isNew && (form.job_id || form.jobs_on_id || form.quote_id || form.request_id) && (
+        <EntityWorkflowBar
+          anchor={{
+            leadId: form.job_id ?? undefined,
+            jobsOnId: form.jobs_on_id ?? undefined,
+            quoteId: form.quote_id ?? undefined,
+            requestId: form.request_id ?? undefined,
+          }}
+          current="invoice"
+        />
+      )}
+
+      {testimonialUrl && (
+        <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+          <p className="font-semibold">Customer testimonial link</p>
+          <p className="mt-1 break-all text-xs">{testimonialUrl}</p>
+        </div>
+      )}
 
       <div className="mb-6 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-50 text-sky-600">

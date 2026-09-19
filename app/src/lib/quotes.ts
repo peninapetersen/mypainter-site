@@ -103,3 +103,31 @@ export async function deleteQuote(id: string): Promise<void> {
   const { error } = await supabase.from("mp_quotes").delete().eq("id", id);
   if (error) throw error;
 }
+
+export function newApprovalToken(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
+/** Generate customer approval link and mark quote sent. */
+export async function sendQuoteToCustomer(id: string, origin: string): Promise<{ url: string; token: string }> {
+  const existing = await getQuote(id);
+  if (!existing) throw new Error("Quote not found");
+  const token = existing.approval_token || newApprovalToken();
+  const { data, error } = await supabase
+    .from("mp_quotes")
+    .update({
+      status: "sent",
+      approval_token: token,
+      sent_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  const url = `${origin.replace(/\/$/, "")}/approve.html?token=${token}`;
+  return { url, token };
+}
+
+export function quoteApprovalUrl(token: string, origin: string): string {
+  return `${origin.replace(/\/$/, "")}/approve.html?token=${token}`;
+}

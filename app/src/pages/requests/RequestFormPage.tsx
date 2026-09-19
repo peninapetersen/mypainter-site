@@ -1,22 +1,31 @@
 import { FormEvent, useEffect, useId, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Inbox, Truck } from "lucide-react";
 import { ClientSelect } from "@/components/forms/ClientSelect";
+import { RequestClientCard } from "@/components/forms/RequestClientCard";
 import { RequestImageUpload } from "@/components/forms/RequestImageUpload";
 import { RequestLineItemsCard } from "@/components/forms/RequestLineItemsCard";
 import { RequestNotesCard } from "@/components/forms/RequestNotesCard";
+import { FormSaveBar } from "@/components/ui/FormSaveBar";
+import { RequestWebsiteCard } from "@/components/forms/RequestWebsiteCard";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { todayIsoDate } from "@/lib/line-items";
 import { formatDateLong } from "@/lib/nz";
+import { buildLineItemsFromService, type RequestMeasurements } from "@/lib/service-estimate";
+import { getService } from "@/lib/services";
+import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
+import { upsertPipelineForWorkflow } from "@/lib/pipeline";
 import { createQuote } from "@/lib/quotes";
 import { createRequest, deleteRequest, getRequest, updateRequest } from "@/lib/requests";
 import type { LineItem } from "@/types/entities";
+import type { MpService } from "@/types/services";
 
 export function RequestFormPage() {
   const { id } = useParams();
   const isNew = !id || id === "new";
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { showError } = useErrorBanner();
   const { clients } = useClientsMap();
   const draftFolderId = useId().replace(/:/g, "");
@@ -24,11 +33,16 @@ export function RequestFormPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [assessmentOpen, setAssessmentOpen] = useState(false);
+  const [service, setService] = useState<MpService | null>(null);
   const [form, setForm] = useState({
     client_id: "",
+    service_id: "" as string,
     title: "",
     requested_on: todayIsoDate(),
     service_details: "",
+    measurements: {} as RequestMeasurements,
+    estimate_subtotal: 0,
+    source: "admin" as "admin" | "website" | "contact",
     images: [] as { path: string; caption?: string }[],
     assessment_at: "" as string,
     line_items: [] as LineItem[],
@@ -37,15 +51,28 @@ export function RequestFormPage() {
   });
 
   useEffect(() => {
+    const linkedClient = searchParams.get("clientId");
+    if (linkedClient) {
+      setForm((f) => ({ ...f, client_id: linkedClient }));
+      searchParams.delete("clientId");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (isNew) return;
     getRequest(id!)
       .then((r) => {
         if (!r) throw new Error("Request not found");
         setForm({
           client_id: r.client_id ?? "",
+          service_id: r.service_id ?? "",
           title: r.title,
           requested_on: r.requested_on ?? todayIsoDate(),
           service_details: r.service_details,
+          measurements: (r.measurements ?? {}) as RequestMeasurements,
+          estimate_subtotal: Number(r.estimate_subtotal) || 0,
+          source: r.source ?? "admin",
           images: r.images ?? [],
           assessment_at: r.assessment_at ? r.assessment_at.slice(0, 16) : "",
           line_items: r.line_items,
@@ -53,6 +80,13 @@ export function RequestFormPage() {
           internal_notes: r.internal_notes,
         });
         setAssessmentOpen(!!r.assessment_at);
+        if (r.service_id) {
+          getService(r.service_id)
+            .then(setService)
+            .catch(() => setService(null));
+        } else {
+          setService(null);
+        }
       })
       .catch((e) => showError(e.message))
       .finally(() => setLoading(false));
@@ -96,18 +130,41 @@ export function RequestFormPage() {
   async function convertToQuote() {
     setSaving(true);
     try {
+      let lineItems = form.line_items;
+      if (!lineItems.length && service) {
+        lineItems = buildLineItemsFromService(service, form.measurements);
+      } else if (!lineItems.length && form.estimate_subtotal > 0) {
+        lineItems = [{ name: form.title || "Quoted work", qty: 1, unitPrice: form.estimate_subtotal }];
+      }
       const q = await createQuote({
         client_id: form.client_id || null,
         request_id: id!,
         title: form.title,
-        line_items: form.line_items,
+        line_items: lineItems,
       });
+      await updateRequest(id!, { status: "approved" });
+      await upsertPipelineForWorkflow({
+        request_id: id!,
+        quote_id: q.id,
+        client_id: form.client_id || null,
+        title: form.title || q.number,
+        stage: "quote",
+        deal_value: q.total,
+      }).catch(() => {});
       navigate(`/quotes/${q.id}`);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not create quote");
     } finally {
       setSaving(false);
     }
+  }
+
+  function scheduleMeasureUp() {
+    if (isNew) {
+      showError("Save the request first, then schedule the measure-up.");
+      return;
+    }
+    navigate(`/leads/new?fromRequest=${id}`);
   }
 
   async function onDelete() {
@@ -122,6 +179,9 @@ export function RequestFormPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
+  const selectedClient = form.client_id ? clients.find((c) => c.id === form.client_id) ?? null : null;
+  const requestPath = isNew ? undefined : `/requests/${id}`;
+
   return (
     <div className="pb-24">
       <div className="mb-6 flex items-start justify-between gap-3">
@@ -132,11 +192,14 @@ export function RequestFormPage() {
         </div>
         {!isNew && (
           <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
-              → Create invoice
+            <button type="button" onClick={scheduleMeasureUp} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
+              → Schedule measure-up
             </button>
             <button type="button" onClick={convertToQuote} disabled={saving} className="rounded-lg border border-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-[var(--mp-navy)]">
               → Create quote
+            </button>
+            <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600">
+              → Create invoice
             </button>
             <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
               Delete
@@ -145,12 +208,23 @@ export function RequestFormPage() {
         )}
       </div>
 
+      {!isNew && <EntityWorkflowBar anchor={{ requestId: id }} current="request" />}
+
       <div className="mb-8 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-[var(--mp-orange)]">
           <Inbox size={22} />
         </span>
         <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New Request" : form.title || "Edit Request"}</h1>
       </div>
+
+      <FormSaveBar
+        placement="top"
+        saveLabel="Save request"
+        saving={saving}
+        onSave={persist}
+        cancelTo="/requests"
+        hint="Tap Save to store this request — web enquiries are not linked to a job until you schedule measure-up."
+      />
 
       <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-8">
         <div className="space-y-4">
@@ -163,7 +237,12 @@ export function RequestFormPage() {
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <ClientSelect clients={clients} value={form.client_id} onChange={(v) => setForm({ ...form, client_id: v })} />
+              <ClientSelect
+                clients={clients}
+                value={form.client_id}
+                onChange={(v) => setForm({ ...form, client_id: v })}
+                returnTo={requestPath}
+              />
             </div>
             <div>
               <p className="mb-1 text-sm font-semibold text-slate-700">Requested on</p>
@@ -178,7 +257,18 @@ export function RequestFormPage() {
           </div>
         </div>
 
+        {selectedClient && <RequestClientCard client={selectedClient} requestId={isNew ? undefined : id} />}
+
         <hr className="border-slate-200" />
+
+        {!isNew && (
+          <RequestWebsiteCard
+            service={service}
+            measurements={form.measurements}
+            estimateSubtotal={form.estimate_subtotal}
+            source={form.source}
+          />
+        )}
 
         <section>
           <h2 className="text-xl font-bold text-[var(--mp-navy)]">Overview</h2>
@@ -241,21 +331,7 @@ export function RequestFormPage() {
         <RequestNotesCard notes={form.internal_notes} onChange={(internal_notes) => setForm({ ...form, internal_notes })} />
       </form>
 
-      <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-slate-200 bg-white px-4 py-3 md:left-56">
-        <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
-          <Link to="/requests" className="rounded-lg border border-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-[var(--mp-orange)]">
-            Cancel
-          </Link>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => persist()}
-            className="rounded-lg bg-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save Request"}
-          </button>
-        </div>
-      </div>
+      <FormSaveBar placement="bottom" saveLabel="Save request" saving={saving} onSave={persist} cancelTo="/requests" />
     </div>
   );
 }

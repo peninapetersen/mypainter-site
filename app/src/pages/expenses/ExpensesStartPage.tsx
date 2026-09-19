@@ -13,9 +13,9 @@ export function ExpensesStartPage() {
       .catch(() => setCount(0));
   }, []);
 
-  if (count === null) return <p className="text-slate-500">Loading…</p>;
+  const countLabel = count === null ? "…" : String(count);
 
-  if (count > 0) {
+  if (count !== null && count > 0) {
     return (
       <div className="mx-auto max-w-3xl py-4">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -25,7 +25,7 @@ export function ExpensesStartPage() {
               New expense
             </Link>
             <Link to="/expenses/list" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">
-              View all
+              View all ({countLabel})
             </Link>
           </div>
         </div>
@@ -43,7 +43,10 @@ export function ExpensesStartPage() {
     <div>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-[var(--mp-navy)]">Expenses</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link to="/expenses/list" className="text-sm font-semibold text-[var(--mp-orange)] underline">
+            View all expenses ({countLabel})
+          </Link>
           <div className="relative">
             <button
               type="button"

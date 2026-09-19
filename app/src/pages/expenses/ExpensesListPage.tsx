@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
-import { EXPENSE_CATEGORIES, listExpenses } from "@/lib/expenses";
+import { EXPENSE_CATEGORIES, deleteExpense, listExpenses } from "@/lib/expenses";
 import { formatCurrency, formatDate } from "@/lib/nz";
+import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { Expense } from "@/types/entities";
 
 const categoryLabel = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
@@ -13,6 +15,7 @@ export function ExpensesListPage() {
   const { showError } = useErrorBanner();
   const [rows, setRows] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     listExpenses()
@@ -20,6 +23,18 @@ export function ExpensesListPage() {
       .catch((e) => showError(e.message))
       .finally(() => setLoading(false));
   }, [showError]);
+
+  async function removeExpense(r: Expense) {
+    setDeletingId(r.id);
+    try {
+      await deleteExpense(r.id);
+      setRows((prev) => prev.filter((row) => row.id !== r.id));
+    } catch (e) {
+      showError(formatSupabaseError(e));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const gstTotal = rows.reduce((s, r) => s + Number(r.gst_amount), 0);
 
@@ -55,6 +70,7 @@ export function ExpensesListPage() {
                 <th className="px-4 py-3">Total</th>
                 <th className="hidden px-4 py-3 md:table-cell">GST</th>
                 <th className="hidden px-4 py-3 lg:table-cell">Category</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -70,6 +86,13 @@ export function ExpensesListPage() {
                   <td className="px-4 py-3">{formatCurrency(r.amount)}</td>
                   <td className="hidden px-4 py-3 md:table-cell">{formatCurrency(r.gst_amount)}</td>
                   <td className="hidden px-4 py-3 lg:table-cell text-xs text-slate-500">{categoryLabel[r.category] ?? r.category}</td>
+                  <td className="px-4 py-3 text-right">
+                    <ListDeleteButton
+                      label={r.item_name || r.merchant || "expense"}
+                      deleting={deletingId === r.id}
+                      onDelete={() => removeExpense(r)}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CollapsibleCard } from "@/components/forms/CollapsibleCard";
 import { ContactsEditor } from "@/components/forms/ContactsEditor";
@@ -7,7 +7,8 @@ import { CustomFieldsEditor } from "@/components/forms/CustomFieldsEditor";
 import { FormSection } from "@/components/forms/FormSection";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { clientDisplayName } from "@/lib/client-display";
-import { deleteClient, emptyProperty, getClientBundle, saveClientBundle } from "@/lib/clients";
+import { deleteClient, emptyProperty, getClientBundle, saveClientBundle, validateClientFields } from "@/lib/clients";
+import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { ClientContactInput, ClientPropertyInput, CommunicationSettings, CustomField } from "@/types/entities";
 
 const TITLES = ["", "Mr", "Mrs", "Ms", "Miss", "Dr", "Prof"];
@@ -47,6 +48,8 @@ export function ClientFormPage() {
   const { id } = useParams();
   const isNew = !id || id === "new";
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const { showError } = useErrorBanner();
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -103,6 +106,11 @@ export function ClientFormPage() {
   }
 
   async function persist(createAnother: boolean) {
+    const validation = validateClientFields(client);
+    if (validation) {
+      showError(validation);
+      return;
+    }
     setSaving(true);
     try {
       const props = properties.map((p, i) => ({
@@ -111,7 +119,7 @@ export function ClientFormPage() {
         is_billing: client.billing_same_as_property ? i === 0 : p.is_billing,
       }));
       const allContacts = [...contacts, ...propertyContacts];
-      const saved = await saveClientBundle({
+      const { client: saved, propertiesSkipped } = await saveClientBundle({
         client,
         properties: props,
         contacts: allContacts,
@@ -122,13 +130,18 @@ export function ClientFormPage() {
         setProperties([emptyProperty()]);
         setContacts([]);
         setPropertyContacts([]);
-        navigate("/clients/new", { replace: true });
+        navigate(returnTo ? `/clients/new?returnTo=${encodeURIComponent(returnTo)}` : "/clients/new", { replace: true });
+      } else if (returnTo) {
+        const back = new URL(returnTo, window.location.origin);
+        back.searchParams.set("clientId", saved.id);
+        navigate(`${back.pathname}${back.search}`);
       } else {
-        navigate(isNew ? `/clients/${saved.id}` : "/clients");
+        const params = new URLSearchParams({ saved: "1", name: saved.name || clientDisplayName(saved) });
+        if (propertiesSkipped) params.set("warn", "properties");
+        navigate(`/clients/list?${params.toString()}`);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Save failed";
-      showError(msg.includes("mp_client_") ? `${msg} — run migration 002 in Supabase first.` : msg);
+      showError(formatSupabaseError(err));
     } finally {
       setSaving(false);
     }
@@ -184,7 +197,7 @@ export function ClientFormPage() {
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-semibold text-slate-700">First name</span>
-              <input value={client.first_name} onChange={(e) => setClient({ ...client, first_name: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+              <input required value={client.first_name} onChange={(e) => setClient({ ...client, first_name: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
             </label>
             <label className="block text-sm">
               <span className="mb-1 block font-semibold text-slate-700">Last name</span>
@@ -317,7 +330,10 @@ export function ClientFormPage() {
 
       <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-slate-200 bg-white px-4 py-3 md:left-56">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <Link to="/clients" className="rounded-lg border border-slate-300 px-5 py-2 text-sm font-semibold">
+          <Link
+            to={returnTo || "/clients"}
+            className="rounded-lg border border-slate-300 px-5 py-2 text-sm font-semibold"
+          >
             Cancel
           </Link>
           <div className="flex flex-wrap gap-2">

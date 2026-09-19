@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { formatCurrency } from "@/lib/nz";
-import { listJobs } from "@/lib/jobs";
+import { deleteJob, listJobs } from "@/lib/jobs";
+import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { Job } from "@/types/entities";
 
 export function JobsListPage() {
@@ -14,6 +16,7 @@ export function JobsListPage() {
   const { map } = useClientsMap();
   const [rows, setRows] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     listJobs()
@@ -22,13 +25,25 @@ export function JobsListPage() {
       .finally(() => setLoading(false));
   }, [showError]);
 
+  async function removeJob(j: Job) {
+    setDeletingId(j.id);
+    try {
+      await deleteJob(j.id);
+      setRows((prev) => prev.filter((r) => r.id !== j.id));
+    } catch (e) {
+      showError(formatSupabaseError(e));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Jobs"
-        backTo="/jobs"
+        backTo="/leads"
         actions={
-          <Link to="/jobs/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
+          <Link to="/leads/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New job
           </Link>
         }
@@ -36,7 +51,7 @@ export function JobsListPage() {
       {loading ? (
         <p className="text-slate-500">Loading…</p>
       ) : rows.length === 0 ? (
-        <EmptyState message="No jobs yet." actionLabel="Create first job" actionTo="/jobs/new" />
+        <EmptyState message="No leads yet." actionLabel="Create first lead" actionTo="/leads/new" />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
           <table className="w-full text-sm">
@@ -47,6 +62,7 @@ export function JobsListPage() {
                 <th className="hidden px-4 py-3 sm:table-cell">Client</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -54,7 +70,7 @@ export function JobsListPage() {
                 <tr key={j.id} className="border-b last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-xs">{j.number}</td>
                   <td className="px-4 py-3">
-                    <Link to={`/jobs/${j.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
+                    <Link to={`/leads/${j.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
                       {j.title || "Untitled job"}
                     </Link>
                   </td>
@@ -62,6 +78,13 @@ export function JobsListPage() {
                   <td className="px-4 py-3">{formatCurrency(j.subtotal_price)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={j.status} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <ListDeleteButton
+                      label={j.title || j.number || "job"}
+                      deleting={deletingId === j.id}
+                      onDelete={() => removeJob(j)}
+                    />
                   </td>
                 </tr>
               ))}

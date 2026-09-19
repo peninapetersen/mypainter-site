@@ -16,6 +16,14 @@ for (const name of readdirSync(root)) {
   cpSync(src, join(dist, name), { recursive: true });
 }
 
+const envLocal = join(root, ".env.local");
+if (!existsSync(envLocal)) {
+  console.warn(
+    "\n⚠️  No .env.local — Vite build will use runtime /api/public/app-config for Supabase.\n" +
+      "   Ensure VITE_SUPABASE_ANON_KEY is set in Cloudflare Pages environment variables.\n",
+  );
+}
+
 execSync("node ./node_modules/vite/bin/vite.js build", { cwd: root, stdio: "inherit" });
 
 if (!existsSync(join(dist, "app", "index.html"))) {

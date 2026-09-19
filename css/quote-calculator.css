@@ -1,0 +1,248 @@
+.quote-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.quote-steps {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.quote-step-pill {
+  flex: 1;
+  min-width: 120px;
+  text-align: center;
+  padding: 0.55rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--white);
+  color: var(--grey);
+  border: 2px solid transparent;
+}
+
+.quote-step-pill.is-active {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.quote-step-pill.is-done {
+  background: #e8f4ea;
+  color: #1b5e20;
+  border-color: #c8e6c9;
+}
+
+.quote-panel {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+
+.quote-panel h2 {
+  color: var(--navy);
+  font-size: 1.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.quote-panel .lead {
+  color: var(--grey);
+  margin-bottom: 1.25rem;
+}
+
+.service-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.service-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 1rem 1.1rem;
+  border: 2px solid #e8e0d4;
+  border-radius: var(--radius);
+  background: var(--cream);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.service-option:hover {
+  border-color: var(--orange);
+}
+
+.service-option.is-selected {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(232, 131, 58, 0.2);
+  background: #fff8f2;
+}
+
+.service-option strong {
+  display: block;
+  color: var(--navy);
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.service-option span {
+  color: var(--grey);
+  font-size: 0.9rem;
+}
+
+.service-option em {
+  display: block;
+  margin-top: 0.35rem;
+  font-style: normal;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.quote-form label {
+  display: block;
+  font-weight: 600;
+  color: var(--navy);
+  margin: 1rem 0 0.35rem;
+  font-size: 0.92rem;
+}
+
+.quote-form label:first-child {
+  margin-top: 0;
+}
+
+.quote-form input,
+.quote-form select,
+.quote-form textarea {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d8cfc0;
+  border-radius: 8px;
+  font: inherit;
+  background: var(--white);
+}
+
+.quote-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.quote-form .hint {
+  font-size: 0.82rem;
+  color: var(--grey);
+  margin-top: 0.25rem;
+}
+
+.room-card {
+  border: 1px solid #e8e0d4;
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-top: 1rem;
+  background: #fdfbf7;
+}
+
+.room-card h3 {
+  font-size: 0.95rem;
+  color: var(--navy);
+  margin-bottom: 0.75rem;
+}
+
+.room-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 540px) {
+  .room-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.estimate-box {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #0f3a5f 0%, #1a5080 100%);
+  color: var(--white);
+}
+
+.estimate-box p {
+  margin: 0;
+}
+
+.estimate-box .amount {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-top: 0.25rem;
+}
+
+.estimate-box .fine {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-top: 0.5rem;
+}
+
+.quote-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.quote-actions .btn-secondary {
+  background: transparent;
+  border: 2px solid var(--navy);
+  color: var(--navy);
+  padding: 0.7rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quote-actions .btn-secondary:hover {
+  background: var(--light);
+}
+
+.quote-error {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #fdecea;
+  color: #b71c1c;
+  font-size: 0.9rem;
+}
+
+.quote-success {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.quote-success h2 {
+  color: var(--navy);
+  font-size: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.quote-success p {
+  color: var(--grey);
+  max-width: 36rem;
+  margin: 0 auto 1rem;
+}
+
+.quote-loading {
+  text-align: center;
+  color: var(--grey);
+  padding: 2rem;
+}
+
+.review-block {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--cream);
+  border-radius: 8px;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+}

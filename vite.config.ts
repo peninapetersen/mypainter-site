@@ -5,6 +5,7 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   root: path.resolve(__dirname, "app"),
+  envDir: path.resolve(__dirname),
   base: "/app/",
   build: {
     outDir: path.resolve(__dirname, "dist/app"),

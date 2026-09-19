@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { formatCurrency, formatDate } from "@/lib/nz";
-import { listInvoices } from "@/lib/invoices";
+import { deleteInvoice, listInvoices } from "@/lib/invoices";
+import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { Invoice } from "@/types/entities";
 
 export function InvoicesListPage() {
@@ -14,6 +16,7 @@ export function InvoicesListPage() {
   const { map } = useClientsMap();
   const [rows, setRows] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     listInvoices()
@@ -21,6 +24,18 @@ export function InvoicesListPage() {
       .catch((e) => showError(e.message))
       .finally(() => setLoading(false));
   }, [showError]);
+
+  async function removeInvoice(inv: Invoice) {
+    setDeletingId(inv.id);
+    try {
+      await deleteInvoice(inv.id);
+      setRows((prev) => prev.filter((r) => r.id !== inv.id));
+    } catch (e) {
+      showError(formatSupabaseError(e));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -48,6 +63,7 @@ export function InvoicesListPage() {
                 <th className="px-4 py-3">Balance</th>
                 <th className="hidden px-4 py-3 md:table-cell">Issued</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -64,6 +80,13 @@ export function InvoicesListPage() {
                   <td className="hidden px-4 py-3 md:table-cell">{formatDate(inv.issued_date) || "—"}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={inv.status} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <ListDeleteButton
+                      label={inv.number || "invoice"}
+                      deleting={deletingId === inv.id}
+                      onDelete={() => removeInvoice(inv)}
+                    />
                   </td>
                 </tr>
               ))}

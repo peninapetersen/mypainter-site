@@ -17,9 +17,13 @@ export async function getRequest(id: string): Promise<Request | null> {
 
 export async function createRequest(input: {
   client_id?: string | null;
+  service_id?: string | null;
   title?: string;
   requested_on?: string | null;
   service_details?: string;
+  measurements?: Record<string, unknown>;
+  estimate_subtotal?: number;
+  source?: Request["source"];
   images?: { path: string; caption?: string }[];
   assessment_at?: string | null;
   line_items?: LineItem[];
@@ -34,9 +38,13 @@ export async function createRequest(input: {
     .insert({
       user_id,
       client_id: input.client_id ?? null,
+      service_id: input.service_id ?? null,
       title: input.title ?? "",
       requested_on: input.requested_on ?? null,
       service_details: input.service_details ?? "",
+      measurements: input.measurements ?? {},
+      estimate_subtotal: input.estimate_subtotal ?? 0,
+      source: input.source ?? "admin",
       images: input.images ?? [],
       assessment_at: input.assessment_at ?? null,
       line_items,

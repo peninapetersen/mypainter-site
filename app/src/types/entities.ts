@@ -78,9 +78,13 @@ export type Request = {
   id: string;
   user_id: string;
   client_id: string | null;
+  service_id: string | null;
   title: string;
   requested_on: string | null;
   service_details: string;
+  measurements: Record<string, unknown>;
+  estimate_subtotal: number;
+  source: "admin" | "website" | "contact";
   images: { path: string; caption?: string }[];
   assessment_at: string | null;
   line_items: LineItem[];
@@ -107,9 +111,44 @@ export type Quote = {
   total: number;
   terms: string;
   status: "draft" | "sent" | "approved" | "declined";
+  approval_token: string | null;
+  sent_at: string | null;
+  approved_at: string | null;
   internal_notes: string;
   created_at: string;
   updated_at: string;
+};
+
+/** Approved work in progress — created when customer approves a quote. */
+export type JobOn = {
+  id: string;
+  user_id: string;
+  lead_id: string | null;
+  quote_id: string | null;
+  request_id: string | null;
+  client_id: string | null;
+  number: string;
+  title: string;
+  site_address: string;
+  line_items: LineItem[];
+  notes: string;
+  status: "active" | "completed";
+  approved_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JobChecklistItem = {
+  id: string;
+  label: string;
+  checked: boolean;
+  notes: string;
+};
+
+export type JobChecklist = {
+  id: string;
+  title: string;
+  items: JobChecklistItem[];
 };
 
 export type JobVisit = {
@@ -136,14 +175,17 @@ export type Job = {
   user_id: string;
   client_id: string | null;
   quote_id: string | null;
+  request_id: string | null;
   number: string;
   title: string;
   visits: JobVisit[];
+  checklists: JobChecklist[];
   billing_flags: JobBillingFlags;
   line_items: LineItem[];
   subtotal_cost: number;
   subtotal_price: number;
   status: "scheduled" | "active" | "completed";
+  site_address: string;
   notes: string;
   attachments: unknown[];
   created_at: string;
@@ -155,6 +197,7 @@ export type Invoice = {
   user_id: string;
   client_id: string | null;
   job_id: string | null;
+  jobs_on_id: string | null;
   quote_id: string | null;
   request_id: string | null;
   number: string;
@@ -169,6 +212,8 @@ export type Invoice = {
   balance: number;
   paid_at: string | null;
   status: "draft" | "sent" | "paid" | "overdue";
+  testimonial_token: string | null;
+  sent_at: string | null;
   client_message: string;
   contract: string;
   internal_notes: string;
@@ -201,6 +246,9 @@ export type Expense = {
   id: string;
   user_id: string;
   job_id: string | null;
+  quote_id: string | null;
+  jobs_on_id: string | null;
+  invoice_id: string | null;
   item_name: string;
   description: string;
   merchant: string;
@@ -213,6 +261,111 @@ export type Expense = {
   expense_date: string | null;
   receipt_path: string;
   ai_extracted: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CrewTimesheet = {
+  id: string;
+  user_id: string;
+  crew_member: string;
+  job_id: string | null;
+  check_in_time: string | null;
+  check_out_time: string | null;
+  duration_seconds: number | null;
+  geo: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PipelineStage = "lead" | "quote" | "jobs_on" | "invoiced" | "paid" | "testimonial";
+
+export type Testimonial = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  lead_id: string | null;
+  quote_id: string | null;
+  jobs_on_id: string | null;
+  invoice_id: string | null;
+  customer_name: string;
+  rating: number;
+  review_text: string;
+  submitted_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PipelineOpportunity = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  title: string;
+  stage: PipelineStage;
+  deal_value: number;
+  assigned_to: string;
+  address: string;
+  outcome: string | null;
+  outcome_reason: string;
+  sort_order: number;
+  request_id: string | null;
+  quote_id: string | null;
+  job_id: string | null;
+  jobs_on_id: string | null;
+  invoice_id: string | null;
+  testimonial_requested: boolean;
+  testimonial_received: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScheduleEventKind = "personal" | "task";
+
+export type ScheduleEventRecord = {
+  id: string;
+  user_id: string;
+  kind: ScheduleEventKind;
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  assigned_to: string;
+  client_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CalendarEventKind = "job_visit" | "request" | "task" | "personal";
+
+export type CalendarEvent = {
+  id: string;
+  kind: CalendarEventKind;
+  title: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+  personal: boolean;
+  assignedTo?: string;
+  clientId?: string | null;
+  href?: string;
+};
+
+export type WorkSettings = {
+  user_id: string;
+  quote_reminder_enabled: boolean;
+  quote_reminder_days: number;
+  arrival_window: string;
+  arrival_window_style: "after" | "center";
+  visit_title_template: string;
+  invoice_subject_default: string;
+  invoice_use_job_title: boolean;
+  payment_terms_residential: string;
+  payment_terms_commercial: string;
+  statement_sort_order: "newest_first" | "oldest_first";
+  statement_disclaimer: string;
+  invoice_reminder_reassign: boolean;
+  invoice_reminder_assigned_to: string;
   created_at: string;
   updated_at: string;
 };

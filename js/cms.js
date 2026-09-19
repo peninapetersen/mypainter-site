@@ -5,6 +5,8 @@
   let isAdmin = false;
   let editMode = false;
   let toolbar = null;
+  const embedded =
+    window.parent !== window || new URLSearchParams(location.search).get("embedded") === "1";
   let galleryAlbums = [];
   let activeGalleryFilter = "all";
 
@@ -37,6 +39,15 @@
     }
   }
 
+  function notifyParentEditState() {
+    if (!embedded) return;
+    try {
+      window.parent.postMessage({ type: "mp-cms-edit-state", on: editMode }, location.origin);
+    } catch {
+      /* cross-origin guard */
+    }
+  }
+
   function setEditMode(on) {
     editMode = on;
     document.body.classList.toggle("cms-editing", editMode);
@@ -59,14 +70,18 @@
     }
     if (on) sessionStorage.setItem("mp-edit-mode", "1");
     else sessionStorage.removeItem("mp-edit-mode");
+    notifyParentEditState();
   }
 
   function showToolbar() {
     if (toolbar) return;
     toolbar = document.createElement("div");
     toolbar.id = "cms-toolbar";
-    toolbar.innerHTML = `
-      <span>MyPainter admin</span>
+    toolbar.innerHTML = embedded
+      ? `<span>Editing in app</span>
+      <button type="button" id="cms-edit-toggle">Edit text</button>
+      <p class="cms-hint" id="cms-edit-hint">Click a yellow box — click away to save</p>`
+      : `<span>MyPainter admin</span>
       <button type="button" id="cms-edit-toggle">Edit text</button>
       <a href="/admin/gallery.html">Gallery</a>
       <a href="/admin/">Dashboard</a>
@@ -78,12 +93,20 @@
       setEditMode(!editMode);
     });
 
-    document.getElementById("cms-logout").addEventListener("click", async () => {
-      sessionStorage.removeItem("mp-edit-mode");
-      await fetch("/api/auth/logout", { method: "POST" });
-      location.reload();
-    });
+    const logoutBtn = document.getElementById("cms-logout");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        sessionStorage.removeItem("mp-edit-mode");
+        await fetch("/api/auth/logout", { method: "POST" });
+        location.reload();
+      });
+    }
   }
+
+  window.addEventListener("message", (e) => {
+    if (e.origin !== location.origin) return;
+    if (e.data?.type === "mp-cms-edit" && isAdmin) setEditMode(!!e.data.on);
+  });
 
   async function loadBlocks() {
     try {
@@ -203,10 +226,11 @@
     await checkAdmin();
     if (isAdmin) {
       document.body.classList.add("cms-admin");
+      if (embedded) document.body.classList.add("cms-embedded");
       if (new URLSearchParams(location.search).get("edit") === "1") {
         sessionStorage.setItem("mp-edit-mode", "1");
       }
-      if (sessionStorage.getItem("mp-edit-mode") === "1") {
+      if (embedded || sessionStorage.getItem("mp-edit-mode") === "1") {
         setEditMode(true);
       }
     }

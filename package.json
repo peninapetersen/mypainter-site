@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build-site.mjs",
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name=mypainter-site --commit-dirty=true",
     "preview": "vite preview"
   },
   "repository": {

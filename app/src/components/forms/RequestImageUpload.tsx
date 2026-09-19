@@ -17,6 +17,7 @@ export function RequestImageUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [localError, setLocalError] = useState("");
   const [urls, setUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export function RequestImageUpload({
       return;
     }
     setUploading(true);
+    setLocalError("");
     try {
       const added: RequestImage[] = [];
       for (const file of Array.from(files).slice(0, remaining)) {
@@ -43,13 +45,9 @@ export function RequestImageUpload({
       }
       onChange([...images, ...added]);
     } catch (err) {
-      onError(
-        err instanceof Error
-          ? err.message.includes("Bucket") || err.message.includes("not found")
-            ? "Image upload needs the mypainter-gallery bucket in Supabase Storage."
-            : err.message
-          : "Upload failed",
-      );
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setLocalError(msg);
+      onError(msg);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -85,7 +83,15 @@ export function RequestImageUpload({
         </div>
       )}
       <div className="flex flex-wrap items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8">
-        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
         <button
           type="button"
           disabled={uploading || images.length >= MAX_IMAGES}
@@ -105,6 +111,10 @@ export function RequestImageUpload({
           Upload New
         </button>
       </div>
+      {uploading && <p className="mt-2 text-center text-sm text-slate-500">Uploading…</p>}
+      {localError && (
+        <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{localError}</p>
+      )}
     </div>
   );
 }
