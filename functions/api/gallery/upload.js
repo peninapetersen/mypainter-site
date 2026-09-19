@@ -19,9 +19,12 @@ export async function onRequestPost(context) {
   const album = await DB.prepare("SELECT slug FROM gallery_albums WHERE id = ?").bind(albumId).first();
   if (!album) return json({ error: "Album not found" }, 404);
 
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const rawExt = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const ext = rawExt === "heic" || rawExt === "heif" ? "jpg" : rawExt;
   const r2Key = `gallery/${album.slug}/${uid()}.${ext}`;
-  const contentType = file.type || "image/jpeg";
+  let contentType = file.type || "image/jpeg";
+  if (contentType === "image/heic" || contentType === "image/heif") contentType = "image/jpeg";
+  if (!contentType.startsWith("image/")) contentType = "image/jpeg";
 
   await GALLERY.put(r2Key, file.stream(), {
     httpMetadata: { contentType },

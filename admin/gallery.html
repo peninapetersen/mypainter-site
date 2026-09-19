@@ -11,33 +11,115 @@
         font-size: 0.9rem;
         margin: 0 0 1rem;
       }
-      .album-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
-      .album-row {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        padding: 0.85rem 1rem;
-        background: #faf7ef;
-        border-radius: 8px;
-        border: 2px dashed transparent;
-        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      .folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 1.1rem;
+        margin-bottom: 1rem;
       }
-      .album-row.active { outline: 2px solid #0f3a5f; outline-offset: 1px; }
-      .album-row.drag-over {
-        background: #e8f4ff;
+      .folder-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        border: 2px dashed transparent;
+        border-radius: 10px;
+        padding: 0.35rem;
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      }
+      .folder-card.active {
         border-color: #0f3a5f;
+        background: rgba(15, 58, 95, 0.06);
+        box-shadow: 0 0 0 2px rgba(15, 58, 95, 0.2);
+      }
+      .folder-card.drag-over {
+        border-color: #0f3a5f;
+        background: #e8f4ff;
         box-shadow: 0 0 0 3px rgba(15, 58, 95, 0.15);
+        transform: scale(1.02);
         cursor: grabbing;
       }
-      .album-row .drop-hint {
-        margin-left: auto;
-        font-size: 0.75rem;
-        color: #888;
+      .folder-card .drop-hint {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #0f3a5f;
+        background: rgba(232, 244, 255, 0.92);
+        border-radius: 8px;
         opacity: 0;
+        pointer-events: none;
         transition: opacity 0.15s;
       }
-      .album-row.drag-over .drop-hint { opacity: 1; color: #0f3a5f; font-weight: 700; }
+      .folder-card.drag-over .drop-hint { opacity: 1; }
+      .folder-open {
+        border: none;
+        background: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+      }
+      .folder-shape { width: 100%; }
+      .folder-tab {
+        width: 42%;
+        height: 14px;
+        margin-left: 8%;
+        background: #faf7ef;
+        border: 2px solid #cfc6b6;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+      }
+      .folder-preview {
+        aspect-ratio: 1;
+        background: #faf7ef;
+        border: 2px solid #cfc6b6;
+        border-radius: 0 10px 10px 10px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .folder-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .folder-empty {
+        font-size: 2.5rem;
+        opacity: 0.35;
+        line-height: 1;
+      }
+      .folder-label {
+        padding: 0.55rem 0.25rem 0.35rem;
+      }
+      .folder-label strong {
+        display: block;
+        font-size: 0.88rem;
+        line-height: 1.25;
+        color: #1a1a1a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .folder-label span {
+        font-size: 0.72rem;
+        color: #666;
+      }
+      .folder-actions {
+        display: flex;
+        gap: 0.35rem;
+        padding: 0 0.15rem 0.25rem;
+      }
+      .folder-actions button {
+        flex: 1;
+        font-size: 0.68rem;
+        padding: 0.35rem 0.25rem;
+      }
       .photo-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -90,8 +172,8 @@
       .photo-card input { width: 100%; margin-top: 0.35rem; font: inherit; padding: 0.35rem; border: 1px solid #ddd; border-radius: 4px; cursor: text; }
       .photo-card .actions { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
       .photo-card .actions button { flex: 1; font-size: 0.75rem; padding: 0.35rem; cursor: pointer; }
-      body.is-dragging .album-row { cursor: grabbing; }
-      body.is-dragging-files .album-row:not(.drag-over) { cursor: copy; }
+      body.is-dragging .folder-card { cursor: grabbing; }
+      body.is-dragging-files .folder-card:not(.drag-over) { cursor: copy; }
       .photo-card .thumb-btn {
         border: none;
         padding: 0;
@@ -212,7 +294,7 @@
       <div id="app" hidden>
         <div class="admin-card">
           <h1>Gallery folders</h1>
-          <p class="hint">Drag photos onto a folder to move them, or drop image files straight in. ✋ grab handle on each photo.</p>
+          <p class="hint">Folder grid view — first photo shows inside each folder. Drag photos onto a folder, or drop JPG/PNG/HEIC files straight in.</p>
           <div class="admin-grid">
             <div class="field">
               <label>New folder name</label>
@@ -223,14 +305,14 @@
               <button type="button" class="btn btn-primary" id="create-album-btn">Create folder</button>
             </div>
           </div>
-          <div id="album-list" class="album-list"></div>
+          <div id="album-list" class="folder-grid"></div>
         </div>
 
         <div class="admin-card" id="photos-panel" hidden>
           <h2 id="photos-title">Photos</h2>
           <div class="field">
             <label>Upload photos</label>
-            <input type="file" id="upload-input" accept="image/*" multiple />
+            <input type="file" id="upload-input" accept="image/*,.heic,.heif" multiple />
           </div>
           <div id="photo-grid" class="photo-grid"></div>
         </div>
@@ -267,6 +349,7 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script>
       let albums = [];
       let activeAlbumId = null;
@@ -288,14 +371,33 @@
         return data;
       }
 
+      function isImageFile(file) {
+        if (file.type.startsWith("image/")) return true;
+        return /\.(heic|heif)$/i.test(file.name || "");
+      }
+
+      async function prepareUploadFile(file) {
+        const isHeic =
+          /\.heic$/i.test(file.name) ||
+          /\.heif$/i.test(file.name) ||
+          file.type === "image/heic" ||
+          file.type === "image/heif";
+        if (!isHeic) return file;
+        if (typeof heic2any !== "function") throw new Error("HEIC converter not loaded — refresh the page");
+        const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+        const blob = Array.isArray(converted) ? converted[0] : converted;
+        const base = file.name.replace(/\.(heic|heif)$/i, "");
+        return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+      }
+
       function clearDropHighlights() {
-        document.querySelectorAll(".album-row.drag-over").forEach((el) => el.classList.remove("drag-over"));
+        document.querySelectorAll(".folder-card.drag-over").forEach((el) => el.classList.remove("drag-over"));
         document.getElementById("photo-grid")?.classList.remove("drop-over");
         document.body.classList.remove("is-dragging", "is-dragging-files");
       }
 
       function bindAlbumDropTargets() {
-        document.querySelectorAll(".album-row").forEach((row) => {
+        document.querySelectorAll(".folder-card").forEach((row) => {
           row.addEventListener("dragenter", (e) => {
             e.preventDefault();
             row.classList.add("drag-over");
@@ -384,25 +486,39 @@
       function renderAlbums() {
         const el = document.getElementById("album-list");
         el.innerHTML = albums
-          .map(
-            (a) => `
-          <div class="album-row ${a.id === activeAlbumId ? "active" : ""}" data-id="${a.id}">
-            <strong>${esc(a.title)}</strong>
-            <span style="color:#666;font-size:0.85rem">/${esc(a.slug)}</span>
-            <button type="button" class="btn btn-ghost open-album">Open</button>
-            <button type="button" class="btn btn-ghost rename-album">Rename</button>
-            <button type="button" class="btn btn-danger delete-album">Delete</button>
+          .map((a) => {
+            const count = a.photoCount ?? 0;
+            const preview = a.coverUrl
+              ? `<img src="${esc(a.coverUrl)}" alt="" loading="lazy" />`
+              : `<span class="folder-empty" aria-hidden="true">📁</span>`;
+            return `
+          <div class="folder-card ${a.id === activeAlbumId ? "active" : ""}" data-id="${a.id}">
+            <button type="button" class="folder-open open-album" aria-label="Open ${esc(a.title)}">
+              <div class="folder-shape">
+                <div class="folder-tab"></div>
+                <div class="folder-preview">${preview}</div>
+              </div>
+              <div class="folder-label">
+                <strong>${esc(a.title)}</strong>
+                <span>${count} photo${count === 1 ? "" : "s"}</span>
+              </div>
+            </button>
+            <div class="folder-actions">
+              <button type="button" class="btn btn-ghost rename-album">Rename</button>
+              <button type="button" class="btn btn-danger delete-album">Delete</button>
+            </div>
             <span class="drop-hint">Drop here ✋</span>
-          </div>`,
-          )
+          </div>`;
+          })
           .join("");
 
         el.querySelectorAll(".open-album").forEach((btn) =>
-          btn.addEventListener("click", () => openAlbum(btn.closest(".album-row").dataset.id)),
+          btn.addEventListener("click", () => openAlbum(btn.closest(".folder-card").dataset.id)),
         );
         el.querySelectorAll(".rename-album").forEach((btn) =>
-          btn.addEventListener("click", async () => {
-            const id = btn.closest(".album-row").dataset.id;
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.closest(".folder-card").dataset.id;
             const album = albums.find((a) => a.id === id);
             const title = prompt("Folder name", album.title);
             if (!title) return;
@@ -415,8 +531,9 @@
           }),
         );
         el.querySelectorAll(".delete-album").forEach((btn) =>
-          btn.addEventListener("click", async () => {
-            const id = btn.closest(".album-row").dataset.id;
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const id = btn.closest(".folder-card").dataset.id;
             if (!confirm("Delete this folder and all its photos?")) return;
             await api(`/api/gallery/albums/${id}`, { method: "DELETE" });
             if (activeAlbumId === id) {
@@ -446,6 +563,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ albumId: targetAlbumId }),
         });
+        await loadAlbums();
         if (activeAlbumId) await loadPhotos();
       }
 
@@ -496,6 +614,7 @@
           body: JSON.stringify({ caption, altText }),
         });
         closeEditModal();
+        await loadAlbums();
         await loadPhotos();
       }
 
@@ -503,19 +622,23 @@
         if (!editingPhotoId || !confirm("Delete this photo?")) return;
         await api(`/api/gallery/photos/${editingPhotoId}`, { method: "DELETE" });
         closeEditModal();
+        await loadAlbums();
         await loadPhotos();
       }
 
       async function uploadFiles(fileList, albumId) {
         if (!albumId) throw new Error("Pick a folder first");
-        const files = [...fileList].filter((f) => f.type.startsWith("image/"));
-        if (!files.length) throw new Error("No image files found");
+        const files = [...fileList].filter(isImageFile);
+        if (!files.length) throw new Error("No image files found (JPG, PNG, HEIC supported)");
         const total = files.length;
         let lastUploaded = null;
 
         showUploadProgress(0, total, files[0].name);
         for (let i = 0; i < files.length; i++) {
-          const file = files[i];
+          const raw = files[i];
+          const isHeic = /\.(heic|heif)$/i.test(raw.name);
+          if (isHeic) showUploadProgress(i, total, `Converting ${raw.name}…`);
+          const file = await prepareUploadFile(raw);
           showUploadProgress(i, total, file.name);
           const fd = new FormData();
           fd.append("file", file);
@@ -529,6 +652,7 @@
         }
 
         hideUploadProgress();
+        await loadAlbums();
         if (activeAlbumId === albumId) await loadPhotos();
         if (lastUploaded && total === 1) openEditModal(lastUploaded);
       }
