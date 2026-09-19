@@ -14,6 +14,21 @@ export async function getTestimonial(id: string): Promise<Testimonial | null> {
   return data as Testimonial | null;
 }
 
+export async function getTestimonialByInvoice(invoiceId: string): Promise<Testimonial | null> {
+  const { data, error } = await supabase
+    .from("mp_testimonials")
+    .select("*")
+    .eq("invoice_id", invoiceId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Testimonial | null;
+}
+
+export async function deleteTestimonial(id: string): Promise<void> {
+  const { error } = await supabase.from("mp_testimonials").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export function newTestimonialToken(): string {
   return crypto.randomUUID().replace(/-/g, "");
 }

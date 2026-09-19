@@ -59,7 +59,10 @@ function nextAction(
     return { label: "Create invoice", to: `/invoices/new?fromJobsOn=${chain.jobsOn.id}` };
   }
   if (current === "invoice" && chain.invoice) {
-    return { label: "Add expense", to: `/expenses/new?fromInvoice=${chain.invoice.id}` };
+    if (chain.invoice.status !== "paid") {
+      return { label: "Mark paid", to: `/invoices/${chain.invoice.id}` };
+    }
+    return { label: "Send review request", to: `/invoices/${chain.invoice.id}` };
   }
   return null;
 }

@@ -238,6 +238,7 @@ export async function syncPipelineFromEntities(): Promise<PipelineSyncResult> {
     if (hasJobsOn || hasInvoice) continue;
     const stage = deriveStageFromLead(job);
     const client = job.client_id ? clientMap.get(job.client_id) : null;
+    const linkedQuote = job.quote_id ? quotes.find((q) => q.id === job.quote_id) : null;
     push({
       title: job.title || `Lead ${job.number}`,
       stage,
@@ -246,6 +247,7 @@ export async function syncPipelineFromEntities(): Promise<PipelineSyncResult> {
       address: job.site_address || client?.address || "",
       job_id: job.id,
       quote_id: job.quote_id,
+      request_id: job.request_id ?? linkedQuote?.request_id ?? null,
       sort_order: orderByStage[stage]++,
     });
   }
@@ -315,6 +317,8 @@ export async function upsertPipelineForWorkflow(input: {
   client_id?: string | null;
   deal_value?: number;
   address?: string;
+  testimonial_requested?: boolean;
+  testimonial_received?: boolean;
 }): Promise<void> {
   const user_id = await requireUserId();
   const cards = await listPipeline();
@@ -327,7 +331,7 @@ export async function upsertPipelineForWorkflow(input: {
       (input.invoice_id && c.invoice_id === input.invoice_id),
   );
 
-  const patch = {
+  const patch: Record<string, unknown> = {
     title: input.title,
     stage: input.stage,
     client_id: input.client_id ?? null,
@@ -339,6 +343,11 @@ export async function upsertPipelineForWorkflow(input: {
     invoice_id: input.invoice_id ?? null,
     ...(input.address !== undefined ? { address: input.address } : {}),
   };
+  if (input.testimonial_requested !== undefined) patch.testimonial_requested = input.testimonial_requested;
+  if (input.testimonial_received !== undefined) patch.testimonial_received = input.testimonial_received;
+  if (input.stage === "testimonial" && input.testimonial_requested === undefined) {
+    patch.testimonial_requested = true;
+  }
 
   if (match) {
     const { error } = await supabase.from("mp_pipeline_opportunities").update(patch).eq("id", match.id);

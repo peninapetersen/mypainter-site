@@ -43,6 +43,7 @@ import { SuppliersListPage } from "@/pages/suppliers/SuppliersListPage";
 import { SupplierFormPage } from "@/pages/suppliers/SupplierFormPage";
 import { ContractorsListPage } from "@/pages/contractors/ContractorsListPage";
 import { ContractorFormPage } from "@/pages/contractors/ContractorFormPage";
+import { TestimonialsListPage } from "@/pages/testimonials/TestimonialsListPage";
 
 export default function App() {
   return (
@@ -123,6 +124,11 @@ export default function App() {
             <Route path="list" element={<InvoicesListPage />} />
             <Route path="new" element={<InvoiceFormPage />} />
             <Route path=":id" element={<InvoiceFormPage />} />
+          </Route>
+
+          <Route path="testimonials" element={<Outlet />}>
+            <Route index element={<Navigate to="/testimonials/list" replace />} />
+            <Route path="list" element={<TestimonialsListPage />} />
           </Route>
 
           <Route path="expenses" element={<Outlet />}>

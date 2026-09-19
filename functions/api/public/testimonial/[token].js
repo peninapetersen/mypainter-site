@@ -36,6 +36,9 @@ export async function onRequestPost(context) {
     const rating = Math.min(5, Math.max(1, Number(body.rating) || 5));
     if (!customer_name || !review_text) return json({ error: "Name and review required" }, 400);
 
+    const existing = await supabaseRest(env, `mp_testimonials?invoice_id=eq.${inv.id}&select=id&limit=1`);
+    if (existing?.[0]?.id) return json({ error: "Review already submitted for this job" }, 409);
+
     await supabaseRest(env, "mp_testimonials", {
       method: "POST",
       body: {

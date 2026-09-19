@@ -22,12 +22,13 @@ import {
   createInvoice,
   deleteInvoice,
   getInvoice,
-  markInvoicePaid,
+  markInvoicePaidWithPipeline,
   peekInvoiceNumber,
-  prepareInvoiceForCustomer,
+  requestTestimonialForInvoice,
   sendInvoiceToCustomer,
   updateInvoice,
 } from "@/lib/invoices";
+import { getTestimonialByInvoice } from "@/lib/testimonials";
 import { linkExpensesToInvoice } from "@/lib/expenses";
 import { prefillInvoiceFromWorkflow } from "@/lib/invoice-prefill";
 import { upsertPipelineForWorkflow } from "@/lib/pipeline";
@@ -74,6 +75,7 @@ export function InvoiceFormPage() {
   const [gstRate, setGstRate] = useState(0.15);
   const [applyDefaultContract, setApplyDefaultContract] = useState(true);
   const [testimonialUrl, setTestimonialUrl] = useState("");
+  const [hasTestimonial, setHasTestimonial] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [sending, setSending] = useState(false);
   const [expensesAddedCount, setExpensesAddedCount] = useState(0);
@@ -184,6 +186,9 @@ export function InvoiceFormPage() {
         if (inv.testimonial_token) {
           setTestimonialUrl(`${window.location.origin}/review.html?token=${inv.testimonial_token}`);
         }
+        getTestimonialByInvoice(inv.id)
+          .then((t) => setHasTestimonial(!!t))
+          .catch(() => {});
         setForm({
           client_id: inv.client_id ?? "",
           job_id: inv.job_id,
@@ -269,17 +274,8 @@ export function InvoiceFormPage() {
     if (!id || isNew) return;
     setSaving(true);
     try {
-      await markInvoicePaid(id);
+      await markInvoicePaidWithPipeline(id);
       setForm((f) => ({ ...f, status: "paid" }));
-      await upsertPipelineForWorkflow({
-        invoice_id: id,
-        jobs_on_id: form.jobs_on_id,
-        quote_id: form.quote_id,
-        job_id: form.job_id,
-        title: form.subject || previewNumber,
-        stage: "paid",
-        deal_value: totals.total,
-      }).catch(() => {});
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not mark paid");
     } finally {
@@ -303,13 +299,16 @@ export function InvoiceFormPage() {
     }
   }
 
-  async function copyTestimonialLink() {
+  async function sendReviewRequest() {
     if (!id || isNew) return;
     setSaving(true);
     try {
-      const { testimonialUrl: url } = await prepareInvoiceForCustomer(id, window.location.origin);
+      const { testimonialUrl: url } = await requestTestimonialForInvoice(id, window.location.origin);
       setTestimonialUrl(url);
       await navigator.clipboard.writeText(url).catch(() => {});
+      if (form.status !== "paid") {
+        setForm((f) => ({ ...f, status: "paid" }));
+      }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not create review link");
     } finally {
@@ -378,14 +377,21 @@ export function InvoiceFormPage() {
                 Mark paid
               </button>
             )}
-            <button
-              type="button"
-              onClick={copyTestimonialLink}
-              disabled={saving}
-              className="rounded-lg border border-violet-300 px-3 py-2 text-sm font-semibold text-violet-700"
-            >
-              Review link
-            </button>
+            {!hasTestimonial && (
+              <button
+                type="button"
+                onClick={sendReviewRequest}
+                disabled={saving}
+                className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800"
+              >
+                Send review request
+              </button>
+            )}
+            {hasTestimonial && (
+              <Link to="/testimonials/list" className="rounded-lg border border-violet-300 px-3 py-2 text-sm font-semibold text-violet-700">
+                View review
+              </Link>
+            )}
             <Link
               to={`/expenses/new?fromInvoice=${id}`}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
@@ -421,10 +427,27 @@ export function InvoiceFormPage() {
         />
       )}
 
-      {testimonialUrl && (
+      {testimonialUrl && !hasTestimonial && (
         <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
-          <p className="font-semibold">Customer testimonial link</p>
+          <p className="font-semibold">Review link — copied to clipboard</p>
+          <p className="mt-0.5 text-xs text-violet-700">Send this to the customer by text or email. Their review appears in Testimonials.</p>
           <p className="mt-1 break-all text-xs">{testimonialUrl}</p>
+          {customerEmail && (
+            <a
+              href={`mailto:${customerEmail}?subject=${encodeURIComponent("How did we go?")}&body=${encodeURIComponent(`Hi,\n\nThanks for your payment. We'd love a quick review:\n\n${testimonialUrl}\n\n— Richard, MyPainter`)}`}
+              className="mt-2 inline-block text-xs font-semibold text-violet-800 underline"
+            >
+              Email customer →
+            </a>
+          )}
+        </div>
+      )}
+      {hasTestimonial && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <p className="font-semibold">Customer review received</p>
+          <Link to="/testimonials/list" className="mt-1 inline-block text-xs font-semibold text-emerald-800 underline">
+            View in Testimonials →
+          </Link>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { PipelineCard } from "@/components/pipeline/PipelineCard";
-import { PIPELINE_STAGES } from "@/lib/pipeline-stages";
+import { PIPELINE_STAGES, normalisePipelineStage } from "@/lib/pipeline-stages";
 import { movePipelineCard } from "@/lib/pipeline";
 import type { PipelineOpportunity, PipelineStage } from "@/types/entities";
 
@@ -20,15 +20,13 @@ export function PipelineBoard({
   const [overStage, setOverStage] = useState<PipelineStage | null>(null);
 
   const byStage = useMemo(() => {
-    const map: Record<PipelineStage, PipelineOpportunity[]> = {
-      job: [],
-      quote: [],
-      invoiced: [],
-      paid: [],
-      testimonial: [],
-    };
+    const map = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.id, [] as PipelineOpportunity[]])) as Record<
+      PipelineStage,
+      PipelineOpportunity[]
+    >;
     for (const c of cards) {
-      if (map[c.stage]) map[c.stage].push(c);
+      const stage = normalisePipelineStage(String(c.stage));
+      map[stage].push(c);
     }
     for (const stage of PIPELINE_STAGES) {
       map[stage.id].sort((a, b) => a.sort_order - b.sort_order || b.updated_at.localeCompare(a.updated_at));

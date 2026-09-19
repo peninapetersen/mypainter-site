@@ -63,9 +63,19 @@ export function PipelineCard({
       {Number(card.deal_value) > 0 && (
         <p className="mt-2 text-sm font-bold text-[var(--mp-orange)]">{formatCurrency(card.deal_value)}</p>
       )}
+      {card.stage === "testimonial" && card.testimonial_received && (
+        <span className="mt-2 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+          Review received
+        </span>
+      )}
       {card.stage === "testimonial" && card.testimonial_requested && !card.testimonial_received && (
         <span className="mt-2 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
-          Review requested
+          Awaiting review
+        </span>
+      )}
+      {card.stage === "paid" && (
+        <span className="mt-2 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+          Paid
         </span>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { requireUserId } from "@/lib/auth";
 import { DEFAULT_INVOICE_CONTRACT } from "@/lib/invoice-defaults";
 import { calcLineSubtotal, calcQuoteTotals, todayIsoDate } from "@/lib/line-items";
+import { upsertPipelineForWorkflow } from "@/lib/pipeline";
 import { supabase } from "@/lib/supabase";
 import { resolveGstRate } from "@/lib/tax";
 import { getWorkSettings } from "@/lib/work-settings";
@@ -196,6 +197,46 @@ export async function sendInvoiceToCustomer(id: string): Promise<Invoice> {
     status: inv.status === "draft" ? "sent" : inv.status,
     sent_at: inv.sent_at ?? new Date().toISOString(),
   });
+}
+
+/** Mark paid and advance pipeline to Paid column. */
+export async function markInvoicePaidWithPipeline(id: string): Promise<Invoice> {
+  const inv = await markInvoicePaid(id);
+  await upsertPipelineForWorkflow({
+    invoice_id: inv.id,
+    jobs_on_id: inv.jobs_on_id,
+    quote_id: inv.quote_id,
+    job_id: inv.job_id,
+    request_id: inv.request_id,
+    client_id: inv.client_id,
+    title: inv.subject || inv.number,
+    stage: "paid",
+    deal_value: Number(inv.total),
+  }).catch(() => {});
+  return inv;
+}
+
+/** Create review link, mark sent if needed, move pipeline to Testimonials. */
+export async function requestTestimonialForInvoice(
+  id: string,
+  origin: string,
+): Promise<{ testimonialUrl: string; token: string }> {
+  const inv = await getInvoice(id);
+  if (!inv) throw new Error("Invoice not found");
+  const { testimonialUrl, token } = await prepareInvoiceForCustomer(id, origin);
+  await upsertPipelineForWorkflow({
+    invoice_id: inv.id,
+    jobs_on_id: inv.jobs_on_id,
+    quote_id: inv.quote_id,
+    job_id: inv.job_id,
+    request_id: inv.request_id,
+    client_id: inv.client_id,
+    title: inv.subject || inv.number,
+    stage: "testimonial",
+    deal_value: Number(inv.total),
+    testimonial_requested: true,
+  }).catch(() => {});
+  return { testimonialUrl, token };
 }
 
 /** Ensure testimonial link exists; mark invoice sent. */

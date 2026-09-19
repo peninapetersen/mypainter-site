@@ -43,9 +43,9 @@ export function PipelinePage() {
   async function sync() {
     setSyncing(true);
     try {
-      const added = await syncPipelineFromEntities();
+      const result = await syncPipelineFromEntities();
       await load();
-      if (added > 0) {
+      if (result.added > 0) {
         /* silent success — board updated */
       }
     } catch (e) {
@@ -89,7 +89,10 @@ export function PipelinePage() {
             Pipeline
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Drag cards through Leads → Quotes → Jobs On → Invoiced → Paid → Testimonials.
+            Leads → Quotes → Jobs On → Invoiced → Paid → Testimonials.{" "}
+            <a href="/app/testimonials/list" className="font-semibold text-[var(--mp-orange)] hover:underline">
+              All reviews →
+            </a>
           </p>
         </div>
         <button
