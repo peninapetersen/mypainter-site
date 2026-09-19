@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ListEntryLink } from "@/components/ui/ListEntryLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
@@ -42,7 +43,6 @@ export function ExpensesListPage() {
     <div>
       <PageHeader
         title="Expenses"
-        backTo="/expenses"
         actions={
           <Link to="/expenses/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New expense
@@ -78,9 +78,7 @@ export function ExpensesListPage() {
                 <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-3">{formatDate(r.expense_date) || "—"}</td>
                   <td className="px-4 py-3">
-                    <Link to={`/expenses/${r.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
-                      {r.item_name || "Receipt"}
-                    </Link>
+                    <ListEntryLink to={`/expenses/${r.id}`}>{r.item_name || "Receipt"}</ListEntryLink>
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">{r.merchant || "—"}</td>
                   <td className="px-4 py-3">{formatCurrency(r.amount)}</td>

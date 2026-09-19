@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ListEntryLink } from "@/components/ui/ListEntryLink";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
@@ -41,7 +42,6 @@ export function RequestsListPage() {
     <div>
       <PageHeader
         title="Requests"
-        backTo="/requests"
         actions={
           <Link to="/requests/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
             + New request
@@ -69,14 +69,14 @@ export function RequestsListPage() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <Link to={`/requests/${r.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
+                    <ListEntryLink to={`/requests/${r.id}`}>
                       {r.title || "Untitled request"}
-                      {r.source === "website" && (
-                        <span className="ml-2 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-orange-800">
-                          Web
-                        </span>
-                      )}
-                    </Link>
+                    </ListEntryLink>
+                    {r.source === "website" && (
+                      <span className="ml-2 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-orange-800">
+                        Web
+                      </span>
+                    )}
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">{r.client_id ? map.get(r.client_id) ?? "—" : "—"}</td>
                   <td className="hidden px-4 py-3 md:table-cell">{formatDate(r.requested_on) || "—"}</td>

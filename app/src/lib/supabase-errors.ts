@@ -10,6 +10,10 @@ export function formatSupabaseError(err: unknown): string {
     return `${msg} — Run migration 019 in Supabase SQL editor: supabase/migrations/019_suppliers_tax_accounting.sql`;
   }
 
+  if (msg.includes("mp_service_categories")) {
+    return `${msg} — Run migration 021 in Supabase SQL editor: supabase/migrations/021_service_categories.sql`;
+  }
+
   if (msg.includes("mp_suppliers") || msg.includes("mp_contractors")) {
     return `${msg} — Run migration 018 in Supabase SQL editor: supabase/migrations/018_contacts_contractors_timesheets.sql`;
   }

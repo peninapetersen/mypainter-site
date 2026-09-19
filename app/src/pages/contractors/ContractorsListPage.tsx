@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ListEntryLink } from "@/components/ui/ListEntryLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
@@ -69,12 +70,12 @@ export function ContractorsListPage() {
         <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
           {rows.map((row) => (
             <li key={row.id} className="flex items-center gap-3 px-4 py-3">
-              <Link to={`/contractors/${row.id}`} className="min-w-0 flex-1 hover:text-[var(--mp-orange)]">
-                <p className="font-semibold text-[var(--mp-navy)]">{contractorDisplayName(row)}</p>
+              <div className="min-w-0 flex-1">
+                <ListEntryLink to={`/contractors/${row.id}`}>{contractorDisplayName(row)}</ListEntryLink>
                 <p className="truncate text-sm text-slate-500">
                   {[row.trade, row.phone, rateLabel(row)].filter(Boolean).join(" · ")}
                 </p>
-              </Link>
+              </div>
               <ListDeleteButton
                 label={contractorDisplayName(row)}
                 deleting={deletingId === row.id}

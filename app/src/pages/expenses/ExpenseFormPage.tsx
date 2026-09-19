@@ -14,6 +14,7 @@ import {
   getExpense,
   updateExpense,
 } from "@/lib/expenses";
+import { accountCodeLabel, listAccountCodes } from "@/lib/account-codes";
 import {
   EXPENSE_CATEGORY_CODES,
   EXPENSE_MATERIAL_PRESETS,
@@ -26,7 +27,7 @@ import { getQuote, listQuotes } from "@/lib/quotes";
 import { todayIsoDate } from "@/lib/line-items";
 import { formatCurrency } from "@/lib/nz";
 import { getReceiptImageUrl, uploadReceiptImage } from "@/lib/receipt-images";
-import type { Expense, ExpenseCategory, Invoice, Job, Quote, ReceiptScanResult } from "@/types/entities";
+import type { AccountCode, Expense, ExpenseCategory, Invoice, Job, Quote, ReceiptScanResult } from "@/types/entities";
 
 export function ExpenseFormPage() {
   const { id } = useParams();
@@ -44,6 +45,7 @@ export function ExpenseFormPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenseCodes, setExpenseCodes] = useState<AccountCode[]>([]);
   const [form, setForm] = useState({
     job_id: search.get("fromJob") ?? "",
     quote_id: search.get("fromQuote") ?? "",
@@ -64,11 +66,12 @@ export function ExpenseFormPage() {
   });
 
   useEffect(() => {
-    Promise.all([listJobs(), listQuotes(), listInvoices()])
-      .then(([j, q, inv]) => {
+    Promise.all([listJobs(), listQuotes(), listInvoices(), listAccountCodes({ section: "expenses" })])
+      .then(([j, q, inv, codes]) => {
         setJobs(j);
         setQuotes(q);
         setInvoices(inv);
+        setExpenseCodes(codes);
       })
       .catch(() => {});
   }, []);
@@ -459,11 +462,28 @@ export function ExpenseFormPage() {
 
             <label className="block text-sm">
               <span className="mb-1 block text-xs font-semibold text-slate-500">Accounting code</span>
-              <input
-                value={form.accounting_code}
-                onChange={(e) => setForm({ ...form, accounting_code: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-              />
+              {expenseCodes.length > 0 ? (
+                <select
+                  value={form.accounting_code || expenseCodes[0]?.code || "3100"}
+                  onChange={(e) => setForm({ ...form, accounting_code: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                >
+                  {expenseCodes.map((c) => (
+                    <option key={c.id} value={c.code}>
+                      {accountCodeLabel(c)}
+                    </option>
+                  ))}
+                  {form.accounting_code && !expenseCodes.some((c) => c.code === form.accounting_code) && (
+                    <option value={form.accounting_code}>{form.accounting_code}</option>
+                  )}
+                </select>
+              ) : (
+                <input
+                  value={form.accounting_code}
+                  onChange={(e) => setForm({ ...form, accounting_code: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                />
+              )}
             </label>
 
             <label className="block text-sm">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ListEntryLink, ListRefLink } from "@/components/ui/ListEntryLink";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
@@ -40,11 +41,10 @@ export function JobsListPage() {
   return (
     <div>
       <PageHeader
-        title="Jobs"
-        backTo="/leads"
+        title="Leads"
         actions={
           <Link to="/leads/new" className="rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white">
-            + New job
+            + New lead
           </Link>
         }
       />
@@ -57,8 +57,8 @@ export function JobsListPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Number</th>
                 <th className="px-4 py-3">Title</th>
+                <th className="px-4 py-3">Number</th>
                 <th className="hidden px-4 py-3 sm:table-cell">Client</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">Status</th>
@@ -68,11 +68,11 @@ export function JobsListPage() {
             <tbody>
               {rows.map((j) => (
                 <tr key={j.id} className="border-b last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono text-xs">{j.number}</td>
                   <td className="px-4 py-3">
-                    <Link to={`/leads/${j.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
-                      {j.title || "Untitled job"}
-                    </Link>
+                    <ListEntryLink to={`/leads/${j.id}`}>{j.title || "Untitled lead"}</ListEntryLink>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ListRefLink to={`/leads/${j.id}`}>{j.number}</ListRefLink>
                   </td>
                   <td className="hidden px-4 py-3 sm:table-cell">{j.client_id ? map.get(j.client_id) ?? "—" : "—"}</td>
                   <td className="px-4 py-3">{formatCurrency(j.subtotal_price)}</td>

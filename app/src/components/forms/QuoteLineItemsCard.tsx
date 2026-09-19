@@ -1,7 +1,11 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { ImageIcon, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/nz";
 import { EMPTY_LINE_ITEM } from "@/lib/line-items";
+import { listServices, serviceToLineItem } from "@/lib/services";
 import type { LineItem } from "@/types/entities";
+import type { MpService } from "@/types/services";
 
 export function QuoteLineItemsCard({
   items,
@@ -10,8 +14,24 @@ export function QuoteLineItemsCard({
   items: LineItem[];
   onChange: (items: LineItem[]) => void;
 }) {
+  const [catalogue, setCatalogue] = useState<MpService[]>([]);
+  const [pickerId, setPickerId] = useState("");
+
+  useEffect(() => {
+    listServices(true)
+      .then(setCatalogue)
+      .catch(() => setCatalogue([]));
+  }, []);
+
   function update(i: number, patch: Partial<LineItem>) {
     onChange(items.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  }
+
+  function addFromCatalogue(serviceId: string) {
+    const svc = catalogue.find((s) => s.id === serviceId);
+    if (!svc) return;
+    onChange([...items, serviceToLineItem(svc)]);
+    setPickerId("");
   }
 
   return (
@@ -83,7 +103,7 @@ export function QuoteLineItemsCard({
         ),
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => onChange([...items, { ...EMPTY_LINE_ITEM }])}
@@ -99,6 +119,33 @@ export function QuoteLineItemsCard({
         >
           Add Text
         </button>
+        {catalogue.length > 0 ? (
+          <select
+            value={pickerId}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) addFromCatalogue(id);
+            }}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="">Add from catalogue…</option>
+            {catalogue.map((svc) => (
+              <option key={svc.id} value={svc.id}>
+                {svc.name} — {formatCurrency(svc.rate_per_unit)}
+                {svc.unit_label ? ` / ${svc.unit_label}` : ""}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <Link to="/services/new" className="text-sm text-[var(--mp-orange)] hover:underline">
+            Set up products & services
+          </Link>
+        )}
+        {catalogue.length > 0 && (
+          <Link to="/services/list" className="text-sm text-slate-500 hover:text-[var(--mp-orange)] hover:underline">
+            Manage catalogue
+          </Link>
+        )}
       </div>
     </div>
   );

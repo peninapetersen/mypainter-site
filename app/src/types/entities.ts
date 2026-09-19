@@ -5,6 +5,8 @@ export type LineItem = {
   unitPrice: number;
   unitCost?: number;
   optional?: boolean;
+  /** Income account code — from catalogue category default */
+  account_code?: string;
   /** Text-only block (Jobber "Add Text") — excluded from totals */
   isText?: boolean;
 };
@@ -19,14 +21,27 @@ export type AccountCodeType = "income" | "expense" | "asset" | "other";
 
 export type AccountGstType = "gst_on_income" | "gst_on_expenses" | "no_gst" | "zero_rated";
 
+/** Where an account code appears in Richard's workflow. */
+export type AccountCodeSection =
+  | "products_services"
+  | "quotes"
+  | "invoices"
+  | "expenses"
+  | "suppliers"
+  | "jobs_on_costs"
+  | "contractors"
+  | "tax_return";
+
 export type AccountCode = {
   id: string;
   user_id: string;
   code: string;
   name: string;
+  friendly_name: string;
   account_type: AccountCodeType;
   gst_type: AccountGstType;
   description: string;
+  applies_to: AccountCodeSection[];
   is_active: boolean;
   sort_order: number;
   created_at: string;

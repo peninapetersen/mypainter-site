@@ -34,6 +34,7 @@ export type MpService = {
   sort_order: number;
   active: boolean;
   show_estimate: boolean;
+  account_code: string;
   created_at: string;
   updated_at: string;
 };

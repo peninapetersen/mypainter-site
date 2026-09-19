@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ListEntryLink, ListRefLink } from "@/components/ui/ListEntryLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
@@ -23,7 +23,7 @@ export function JobsOnListPage() {
 
   return (
     <div>
-      <PageHeader title="Jobs On" subtitle="Approved quotes — work in progress." backTo="/jobs-on" />
+      <PageHeader title="Jobs On" subtitle="Approved quotes — work in progress." />
       {loading ? (
         <p className="text-slate-500">Loading…</p>
       ) : rows.length === 0 ? (
@@ -33,8 +33,8 @@ export function JobsOnListPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs font-bold uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Title</th>
+                <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Client</th>
                 <th className="px-4 py-3">Value</th>
                 <th className="px-4 py-3">Status</th>
@@ -44,11 +44,11 @@ export function JobsOnListPage() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">
                   <td className="px-4 py-3">
-                    <Link to={`/jobs-on/${r.id}`} className="font-semibold text-[var(--mp-navy)] hover:underline">
-                      {r.number}
-                    </Link>
+                    <ListEntryLink to={`/jobs-on/${r.id}`}>{r.title || r.number || "Untitled"}</ListEntryLink>
                   </td>
-                  <td className="px-4 py-3">{r.title || "—"}</td>
+                  <td className="px-4 py-3">
+                    <ListRefLink to={`/jobs-on/${r.id}`}>{r.number}</ListRefLink>
+                  </td>
                   <td className="px-4 py-3">{r.client_id ? map.get(r.client_id) || "—" : "—"}</td>
                   <td className="px-4 py-3">{formatCurrency(jobsOnDealValue(r))}</td>
                   <td className="px-4 py-3">

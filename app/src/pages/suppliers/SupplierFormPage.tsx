@@ -75,7 +75,7 @@ export function SupplierFormPage() {
   const [form, setForm] = useState(supplierToForm({ ...emptySupplierFields(), id: "", user_id: "", created_at: "", updated_at: "" }));
 
   useEffect(() => {
-    listAccountCodes()
+    listAccountCodes({ section: "suppliers" })
       .then(setCodes)
       .catch(() => setCodes([]));
   }, []);
@@ -137,7 +137,7 @@ export function SupplierFormPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
-  const expenseCodes = codes.filter((c) => c.account_type === "expense" && c.is_active);
+  const expenseCodes = codes;
 
   return (
     <div className="pb-24">
