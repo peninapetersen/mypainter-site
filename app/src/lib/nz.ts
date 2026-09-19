@@ -17,3 +17,13 @@ export function formatDate(d: Date | string | null | undefined): string {
     year: "numeric",
   }).format(date);
 }
+
+export function formatDateLong(d: Date | string | null | undefined): string {
+  if (!d) return "";
+  const date = typeof d === "string" ? new Date(`${d}T12:00:00`) : d;
+  return new Intl.DateTimeFormat("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}

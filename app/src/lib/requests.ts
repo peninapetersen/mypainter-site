@@ -20,6 +20,8 @@ export async function createRequest(input: {
   title?: string;
   requested_on?: string | null;
   service_details?: string;
+  images?: { path: string; caption?: string }[];
+  assessment_at?: string | null;
   line_items?: LineItem[];
   status?: Request["status"];
   internal_notes?: string;
@@ -35,9 +37,11 @@ export async function createRequest(input: {
       title: input.title ?? "",
       requested_on: input.requested_on ?? null,
       service_details: input.service_details ?? "",
+      images: input.images ?? [],
+      assessment_at: input.assessment_at ?? null,
       line_items,
       subtotal,
-      status: input.status ?? "draft",
+      status: input.status ?? "open",
       internal_notes: input.internal_notes ?? "",
     })
     .select("*")
