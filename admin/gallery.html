@@ -6,21 +6,92 @@
     <title>Gallery Admin | MyPainter</title>
     <link rel="stylesheet" href="/css/admin.css" />
     <style>
+      .hint {
+        color: #555;
+        font-size: 0.9rem;
+        margin: 0 0 1rem;
+      }
       .album-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
       .album-row {
-        display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
-        padding: 0.75rem; background: #faf7ef; border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.85rem 1rem;
+        background: #faf7ef;
+        border-radius: 8px;
+        border: 2px dashed transparent;
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
       }
-      .album-row.active { outline: 2px solid #0f3a5f; }
+      .album-row.active { outline: 2px solid #0f3a5f; outline-offset: 1px; }
+      .album-row.drag-over {
+        background: #e8f4ff;
+        border-color: #0f3a5f;
+        box-shadow: 0 0 0 3px rgba(15, 58, 95, 0.15);
+        cursor: grabbing;
+      }
+      .album-row .drop-hint {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: #888;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .album-row.drag-over .drop-hint { opacity: 1; color: #0f3a5f; font-weight: 700; }
       .photo-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.75rem;
       }
-      .photo-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
-      .photo-card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+      .photo-grid.drop-over {
+        outline: 3px dashed #0f3a5f;
+        outline-offset: 4px;
+        border-radius: 8px;
+        background: rgba(232, 244, 255, 0.5);
+      }
+      .photo-card {
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+        cursor: grab;
+        touch-action: none;
+      }
+      .photo-card:active { cursor: grabbing; }
+      .photo-card.dragging {
+        opacity: 0.45;
+        cursor: grabbing;
+        transform: scale(0.98);
+      }
+      .photo-card .drag-handle {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #666;
+        background: #f3efe6;
+        cursor: grab;
+        user-select: none;
+      }
+      .photo-card .drag-handle::before { content: "✋"; font-size: 0.85rem; }
+      .photo-card img {
+        width: 100%;
+        aspect-ratio: 3/4;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+        user-select: none;
+      }
       .photo-card .meta { padding: 0.5rem; font-size: 0.85rem; }
-      .photo-card input { width: 100%; margin-top: 0.35rem; font: inherit; padding: 0.35rem; border: 1px solid #ddd; border-radius: 4px; }
+      .photo-card input { width: 100%; margin-top: 0.35rem; font: inherit; padding: 0.35rem; border: 1px solid #ddd; border-radius: 4px; cursor: text; }
       .photo-card .actions { display: flex; gap: 0.35rem; margin-top: 0.35rem; }
-      .photo-card .actions button { flex: 1; font-size: 0.75rem; padding: 0.35rem; }
+      .photo-card .actions button { flex: 1; font-size: 0.75rem; padding: 0.35rem; cursor: pointer; }
+      body.is-dragging .album-row { cursor: grabbing; }
+      body.is-dragging-files .album-row:not(.drag-over) { cursor: copy; }
     </style>
   </head>
   <body class="admin-body">
@@ -37,6 +108,7 @@
       <div id="app" hidden>
         <div class="admin-card">
           <h1>Gallery folders</h1>
+          <p class="hint">Drag photos onto a folder to move them, or drop image files straight in. ✋ grab handle on each photo.</p>
           <div class="admin-grid">
             <div class="field">
               <label>New folder name</label>
@@ -63,6 +135,14 @@
     <script>
       let albums = [];
       let activeAlbumId = null;
+      let dragPhotoId = null;
+
+      function esc(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/"/g, "&quot;");
+      }
 
       async function api(path, opts = {}) {
         const res = await fetch(path, opts);
@@ -70,6 +150,82 @@
         if (!res.ok) throw new Error(data.error || res.statusText);
         return data;
       }
+
+      function clearDropHighlights() {
+        document.querySelectorAll(".album-row.drag-over").forEach((el) => el.classList.remove("drag-over"));
+        document.getElementById("photo-grid")?.classList.remove("drop-over");
+        document.body.classList.remove("is-dragging", "is-dragging-files");
+      }
+
+      function bindAlbumDropTargets() {
+        document.querySelectorAll(".album-row").forEach((row) => {
+          row.addEventListener("dragenter", (e) => {
+            e.preventDefault();
+            row.classList.add("drag-over");
+          });
+          row.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = dragPhotoId || e.dataTransfer.types.includes("Files") ? "move" : "copy";
+            row.classList.add("drag-over");
+          });
+          row.addEventListener("dragleave", (e) => {
+            if (!row.contains(e.relatedTarget)) row.classList.remove("drag-over");
+          });
+          row.addEventListener("drop", async (e) => {
+            e.preventDefault();
+            row.classList.remove("drag-over");
+            clearDropHighlights();
+            const albumId = row.dataset.id;
+            const photoId = e.dataTransfer.getData("application/x-mp-photo");
+            try {
+              if (photoId) {
+                await movePhoto(photoId, albumId);
+              } else if (e.dataTransfer.files?.length) {
+                await uploadFiles(e.dataTransfer.files, albumId);
+              }
+            } catch (err) {
+              alert(err.message || "Drop failed");
+            }
+          });
+        });
+      }
+
+      function bindPhotoGridDrop() {
+        const grid = document.getElementById("photo-grid");
+        if (!grid || !activeAlbumId) return;
+
+        grid.addEventListener("dragenter", (e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          grid.classList.add("drop-over");
+        });
+        grid.addEventListener("dragover", (e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          grid.classList.add("drop-over");
+        });
+        grid.addEventListener("dragleave", (e) => {
+          if (!grid.contains(e.relatedTarget)) grid.classList.remove("drop-over");
+        });
+        grid.addEventListener("drop", async (e) => {
+          if (!e.dataTransfer.files?.length) return;
+          e.preventDefault();
+          grid.classList.remove("drop-over");
+          clearDropHighlights();
+          try {
+            await uploadFiles(e.dataTransfer.files, activeAlbumId);
+          } catch (err) {
+            alert(err.message || "Upload failed");
+          }
+        });
+      }
+
+      document.body.addEventListener("dragenter", (e) => {
+        if (e.dataTransfer.types.includes("Files")) document.body.classList.add("is-dragging-files");
+      });
+      document.body.addEventListener("dragend", clearDropHighlights);
+      document.body.addEventListener("drop", clearDropHighlights);
 
       async function requireAuth() {
         const me = await fetch("/api/auth/me").then((r) => r.json());
@@ -94,11 +250,12 @@
           .map(
             (a) => `
           <div class="album-row ${a.id === activeAlbumId ? "active" : ""}" data-id="${a.id}">
-            <strong>${a.title}</strong>
-            <span style="color:#666;font-size:0.85rem">/${a.slug}</span>
+            <strong>${esc(a.title)}</strong>
+            <span style="color:#666;font-size:0.85rem">/${esc(a.slug)}</span>
             <button type="button" class="btn btn-ghost open-album">Open</button>
             <button type="button" class="btn btn-ghost rename-album">Rename</button>
             <button type="button" class="btn btn-danger delete-album">Delete</button>
+            <span class="drop-hint">Drop here ✋</span>
           </div>`,
           )
           .join("");
@@ -132,6 +289,8 @@
             await loadAlbums();
           }),
         );
+
+        bindAlbumDropTargets();
       }
 
       async function openAlbum(id) {
@@ -143,16 +302,42 @@
         await loadPhotos();
       }
 
+      async function movePhoto(photoId, targetAlbumId) {
+        if (!photoId || !targetAlbumId) return;
+        await api(`/api/gallery/photos/${photoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ albumId: targetAlbumId }),
+        });
+        if (activeAlbumId) await loadPhotos();
+      }
+
+      async function uploadFiles(fileList, albumId) {
+        if (!albumId) throw new Error("Pick a folder first");
+        for (const file of fileList) {
+          if (!file.type.startsWith("image/")) continue;
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("albumId", albumId);
+          fd.append("caption", file.name.replace(/\.[^.]+$/, ""));
+          const res = await fetch("/api/gallery/upload", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Upload failed");
+        }
+        if (activeAlbumId === albumId) await loadPhotos();
+      }
+
       async function loadPhotos() {
         const data = await api(`/api/gallery/photos?albumId=${activeAlbumId}`);
         const grid = document.getElementById("photo-grid");
         grid.innerHTML = (data.photos || [])
           .map(
             (p) => `
-          <div class="photo-card" data-id="${p.id}">
-            <img src="${p.url}" alt="${p.altText || ""}" />
+          <div class="photo-card" data-id="${p.id}" draggable="true">
+            <div class="drag-handle">Drag to folder</div>
+            <img src="${esc(p.url)}" alt="${esc(p.altText)}" draggable="false" />
             <div class="meta">
-              <input class="caption" value="${p.caption.replace(/"/g, "&quot;")}" placeholder="Caption" />
+              <input class="caption" value="${esc(p.caption)}" placeholder="Caption" />
               <div class="actions">
                 <button type="button" class="btn btn-accent save-photo">Save</button>
                 <button type="button" class="btn btn-danger del-photo">Delete</button>
@@ -161,6 +346,29 @@
           </div>`,
           )
           .join("");
+
+        grid.querySelectorAll(".photo-card").forEach((card) => {
+          card.addEventListener("dragstart", (e) => {
+            if (e.target.closest("input, button")) {
+              e.preventDefault();
+              return;
+            }
+            dragPhotoId = card.dataset.id;
+            document.body.classList.add("is-dragging");
+            card.classList.add("dragging");
+            e.dataTransfer.setData("application/x-mp-photo", dragPhotoId);
+            e.dataTransfer.effectAllowed = "move";
+            if (e.dataTransfer.setDragImage) {
+              const img = card.querySelector("img");
+              if (img) e.dataTransfer.setDragImage(img, 40, 50);
+            }
+          });
+          card.addEventListener("dragend", () => {
+            dragPhotoId = null;
+            card.classList.remove("dragging");
+            clearDropHighlights();
+          });
+        });
 
         grid.querySelectorAll(".save-photo").forEach((btn) =>
           btn.addEventListener("click", async () => {
@@ -183,6 +391,8 @@
             await loadPhotos();
           }),
         );
+
+        bindPhotoGridDrop();
       }
 
       document.getElementById("create-album-btn").addEventListener("click", async () => {
@@ -199,17 +409,12 @@
 
       document.getElementById("upload-input").addEventListener("change", async (e) => {
         if (!activeAlbumId) return alert("Open a folder first");
-        for (const file of e.target.files) {
-          const fd = new FormData();
-          fd.append("file", file);
-          fd.append("albumId", activeAlbumId);
-          fd.append("caption", file.name.replace(/\.[^.]+$/, ""));
-          const res = await fetch("/api/gallery/upload", { method: "POST", body: fd });
-          const data = await res.json();
-          if (!res.ok) alert(data.error || "Upload failed");
+        try {
+          await uploadFiles(e.target.files, activeAlbumId);
+        } catch (err) {
+          alert(err.message || "Upload failed");
         }
         e.target.value = "";
-        await loadPhotos();
       });
 
       document.getElementById("logout-btn").addEventListener("click", async () => {
