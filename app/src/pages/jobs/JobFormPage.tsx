@@ -17,7 +17,6 @@ import {
   parseBillingFlags,
   parseVisits,
 } from "@/lib/job-defaults";
-import { createInvoice } from "@/lib/invoices";
 import { createJob, deleteJob, getJob, peekJobNumber, updateJob } from "@/lib/jobs";
 import { getQuote } from "@/lib/quotes";
 import type { JobBillingFlags, JobVisit, LineItem } from "@/types/entities";
@@ -131,21 +130,12 @@ export function JobFormPage() {
     await persist();
   }
 
-  async function convertToInvoice() {
-    setSaving(true);
-    try {
-      const inv = await createInvoice({
-        client_id: form.client_id || null,
-        job_id: id!,
-        line_items: form.line_items,
-        gstRegistered: form.billing_flags.gstRegistered || showTax,
-      });
-      navigate(`/invoices/${inv.id}`);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not create invoice");
-    } finally {
-      setSaving(false);
+  function convertToInvoice() {
+    if (isNew) {
+      showError("Save the job first, then create an invoice.");
+      return;
     }
+    navigate(`/invoices/new?fromJob=${id}`);
   }
 
   async function onDelete() {

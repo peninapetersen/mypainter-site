@@ -9,6 +9,7 @@ import { RequestNotesCard } from "@/components/forms/RequestNotesCard";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { calcLineSubtotal, calcQuoteTotals, DEFAULT_QUOTE_TERMS, todayIsoDate, addDaysIsoDate } from "@/lib/line-items";
+import { getInvoice } from "@/lib/invoices";
 import { getRequest } from "@/lib/requests";
 import { createQuote, deleteQuote, getQuote, peekQuoteNumber, updateQuote } from "@/lib/quotes";
 import { createJob } from "@/lib/jobs";
@@ -63,6 +64,8 @@ export function QuoteFormPage() {
         if (isNew) {
           setPreviewNumber(await peekQuoteNumber());
           const fromRequest = search.get("fromRequest");
+          const fromInvoice = search.get("fromInvoice");
+          const newClient = search.get("newClient") === "1";
           if (fromRequest) {
             const r = await getRequest(fromRequest);
             if (r) {
@@ -73,6 +76,22 @@ export function QuoteFormPage() {
                 title: r.title,
                 line_items: r.line_items,
               }));
+            }
+          } else if (fromInvoice) {
+            const inv = await getInvoice(fromInvoice);
+            if (inv) {
+              setForm((f) => ({
+                ...f,
+                client_id: newClient ? "" : inv.client_id ?? "",
+                title: inv.subject || f.title,
+                line_items: inv.line_items,
+                discount: Number(inv.discount ?? 0),
+                gstRegistered: Number(inv.gst) > 0,
+                terms: inv.contract || f.terms,
+                internal_notes: newClient ? `From invoice ${inv.number} — assign a new client.` : inv.internal_notes ?? "",
+              }));
+              setShowDiscount(Number(inv.discount) > 0);
+              setShowTax(Number(inv.gst) > 0);
             }
           }
           setLoading(false);
@@ -137,6 +156,14 @@ export function QuoteFormPage() {
     await persist();
   }
 
+  function convertToInvoice() {
+    if (isNew) {
+      showError("Save the quote first, then create an invoice.");
+      return;
+    }
+    navigate(`/invoices/new?fromQuote=${id}`);
+  }
+
   async function convertToJob() {
     setSaving(true);
     try {
@@ -177,8 +204,11 @@ export function QuoteFormPage() {
           ← Back
         </Link>
         {!isNew && (
-          <div className="flex gap-2">
-            <button type="button" onClick={convertToJob} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
+              → Create invoice
+            </button>
+            <button type="button" onClick={convertToJob} disabled={saving} className="rounded-lg border border-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-[var(--mp-navy)]">
               → Create job
             </button>
             <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">

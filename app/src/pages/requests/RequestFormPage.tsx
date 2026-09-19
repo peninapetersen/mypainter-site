@@ -85,6 +85,14 @@ export function RequestFormPage() {
     await persist();
   }
 
+  function convertToInvoice() {
+    if (isNew) {
+      showError("Save the request first, then create an invoice.");
+      return;
+    }
+    navigate(`/invoices/new?fromRequest=${id}`);
+  }
+
   async function convertToQuote() {
     setSaving(true);
     try {
@@ -123,8 +131,11 @@ export function RequestFormPage() {
           </Link>
         </div>
         {!isNew && (
-          <div className="flex gap-2">
-            <button type="button" onClick={convertToQuote} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
+              → Create invoice
+            </button>
+            <button type="button" onClick={convertToQuote} disabled={saving} className="rounded-lg border border-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-[var(--mp-navy)]">
               → Create quote
             </button>
             <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
