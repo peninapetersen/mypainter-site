@@ -17,8 +17,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="stylesheet" href="/css/cms.css" />
   </head>
-  <body>
+  <body data-page="painting">
     <header>
       <div class="container header-inner">
         <a href="/" class="logo" aria-label="mypainter.co.nz home"><img src="/images/logo.png" alt="mypainter.co.nz" width="200" height="46" decoding="async" /></a>
@@ -46,8 +47,8 @@
       <section class="hero">
         <div class="hero-inner container">
           <div>
-            <h1>Painting Services — Whangarei &amp; Northland</h1>
-            <p class="subhead">
+            <h1 data-block="hero.h1">Painting Services — Whangarei &amp; Northland</h1>
+            <p class="subhead" data-block="hero.subhead">
               From a single room refresh to a full exterior repaint. Proper prep,
               quality paint, lasting finish.
             </p>
@@ -275,5 +276,6 @@
         <p>© 2026 MyPainter · Richard Petersen · Whangarei NZ</p>
       </div>
     </footer>
+    <script src="/js/cms.js" defer></script>
   </body>
 </html>
