@@ -177,6 +177,46 @@ export type Invoice = {
   updated_at: string;
 };
 
+export type ExpenseCategory =
+  | "COGS_Materials"
+  | "Motor_Vehicle"
+  | "Tools_Equipment"
+  | "Subcontractors"
+  | "Admin_Insurance";
+
+export type ReceiptScanResult = {
+  item_name: string;
+  description: string;
+  amount: number;
+  gst_amount: number;
+  gst_inclusive: boolean;
+  expense_date: string;
+  merchant: string;
+  category: ExpenseCategory;
+  accounting_code: string;
+  reimburse_to: string;
+};
+
+export type Expense = {
+  id: string;
+  user_id: string;
+  job_id: string | null;
+  item_name: string;
+  description: string;
+  merchant: string;
+  amount: number;
+  gst_amount: number;
+  gst_inclusive: boolean;
+  category: ExpenseCategory;
+  accounting_code: string;
+  reimburse_to: string;
+  expense_date: string | null;
+  receipt_path: string;
+  ai_extracted: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ClientInsert = Omit<Client, "id" | "created_at" | "updated_at">;
 export type RequestInsert = Omit<Request, "id" | "created_at" | "updated_at">;
 export type QuoteInsert = Omit<Quote, "id" | "created_at" | "updated_at">;

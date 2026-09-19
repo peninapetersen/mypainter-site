@@ -50,4 +50,5 @@ export const NEW_MENU_LINKS = [
   { label: "Quote", path: "/quotes" },
   { label: "Job", path: "/jobs" },
   { label: "Invoice", path: "/invoices" },
+  { label: "Expense", path: "/expenses/new" },
 ];

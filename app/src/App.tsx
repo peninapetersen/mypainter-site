@@ -20,6 +20,9 @@ import { JobFormPage } from "@/pages/jobs/JobFormPage";
 import { InvoicesStartPage } from "@/pages/invoices/InvoicesStartPage";
 import { InvoicesListPage } from "@/pages/invoices/InvoicesListPage";
 import { InvoiceFormPage } from "@/pages/invoices/InvoiceFormPage";
+import { ExpensesStartPage } from "@/pages/expenses/ExpensesStartPage";
+import { ExpensesListPage } from "@/pages/expenses/ExpensesListPage";
+import { ExpenseFormPage } from "@/pages/expenses/ExpenseFormPage";
 
 export default function App() {
   return (
@@ -71,7 +74,12 @@ export default function App() {
             <Route path=":id" element={<InvoiceFormPage />} />
           </Route>
 
-          <Route path="expenses" element={<PlaceholderPage title="Expenses" subtitle="Phase 3 — receipts and GST boards." />} />
+          <Route path="expenses" element={<Outlet />}>
+            <Route index element={<ExpensesStartPage />} />
+            <Route path="list" element={<ExpensesListPage />} />
+            <Route path="new" element={<ExpenseFormPage />} />
+            <Route path=":id" element={<ExpenseFormPage />} />
+          </Route>
           <Route path="schedule" element={<PlaceholderPage title="Schedule" subtitle="Phase 4 — calendar." />} />
           <Route path="timesheets" element={<PlaceholderPage title="Timesheets" subtitle="Phase 4 — crew check-in/out." />} />
           <Route path="marketing" element={<PlaceholderPage title="Marketing" subtitle="Phase 5 — marketing hub." />} />
