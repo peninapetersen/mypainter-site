@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "dist");
-const SKIP = new Set(["app", "dist", "node_modules", ".git", "scripts"]);
+const SKIP = new Set(["app", "dist", "node_modules", ".git", "scripts", "functions"]);
 
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
