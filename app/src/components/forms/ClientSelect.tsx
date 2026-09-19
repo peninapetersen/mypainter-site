@@ -9,6 +9,8 @@ export function ClientSelect({
   onChange,
   required,
   returnTo,
+  label = "Client",
+  emptyLabel = "— Select client —",
 }: {
   clients: Client[];
   value: string;
@@ -16,6 +18,8 @@ export function ClientSelect({
   required?: boolean;
   /** After edit/new client, return here (e.g. /requests/uuid) */
   returnTo?: string;
+  label?: string;
+  emptyLabel?: string;
 }) {
   const editHref = value
     ? returnTo
@@ -26,7 +30,7 @@ export function ClientSelect({
 
   return (
     <div>
-      <p className="mb-1 text-sm font-semibold text-slate-700">Client</p>
+      <p className="mb-1 text-sm font-semibold text-slate-700">{label}</p>
       <div className="flex gap-2">
         <select
           value={value}
@@ -34,7 +38,7 @@ export function ClientSelect({
           required={required}
           className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
         >
-          <option value="">— Select client —</option>
+          <option value="">{emptyLabel}</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {[c.first_name, c.last_name].filter(Boolean).join(" ").trim() || clientDisplayName(c)}

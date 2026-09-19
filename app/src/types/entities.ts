@@ -119,6 +119,9 @@ export type Client = {
   status: "lead" | "active" | "inactive";
   last_activity_at: string | null;
   photo_path: string;
+  website: string;
+  /** CRM link — another client record representing the company/org */
+  company_client_id: string | null;
   notes: string;
   created_at: string;
   updated_at: string;

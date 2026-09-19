@@ -10,6 +10,7 @@ type Props = {
   displayName: string;
   onChange: (path: string) => void;
   onError: (msg: string) => void;
+  onUploaded?: (path: string) => void | Promise<void>;
   round?: boolean;
 };
 
@@ -21,45 +22,87 @@ export function ImageCropUpload({
   displayName,
   onChange,
   onError,
+  onUploaded,
   round = true,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const localPreviewRef = useRef<string>("");
+  const boundsRef = useRef({ minSize: 80, maxSize: 400 });
   const [previewUrl, setPreviewUrl] = useState("");
   const [cropOpen, setCropOpen] = useState(false);
-  const [cropSrc, setCropSrc] = useState("");
   const [cropImage, setCropImage] = useState<HTMLImageElement | null>(null);
   const [cropSize, setCropSize] = useState(0);
   const [cropX, setCropX] = useState(0);
   const [cropY, setCropY] = useState(0);
+  const [zoom, setZoom] = useState(0);
   const [uploading, setUploading] = useState(false);
+
+  function setLocalPreview(url: string) {
+    if (localPreviewRef.current) URL.revokeObjectURL(localPreviewRef.current);
+    localPreviewRef.current = url;
+    setPreviewUrl(url);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewRef.current) URL.revokeObjectURL(localPreviewRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!photoPath) {
-      setPreviewUrl("");
+      if (!localPreviewRef.current) setPreviewUrl("");
       return;
     }
     getGalleryImageUrl(photoPath)
-      .then(setPreviewUrl)
-      .catch(() => setPreviewUrl(""));
+      .then((url) => {
+        if (localPreviewRef.current) URL.revokeObjectURL(localPreviewRef.current);
+        localPreviewRef.current = "";
+        setPreviewUrl(url);
+      })
+      .catch(() => {
+        if (!localPreviewRef.current) setPreviewUrl("");
+      });
   }, [photoPath]);
+
+  function clampPosition(x: number, y: number, size: number, img: HTMLImageElement) {
+    const maxX = Math.max(0, img.naturalWidth - size);
+    const maxY = Math.max(0, img.naturalHeight - size);
+    return {
+      x: Math.min(Math.max(0, x), maxX),
+      y: Math.min(Math.max(0, y), maxY),
+    };
+  }
+
+  function applyZoom(z: number, img: HTMLImageElement, sizeOverride?: number) {
+    const { minSize, maxSize } = boundsRef.current;
+    const size = sizeOverride ?? Math.round(maxSize - (z / 100) * (maxSize - minSize));
+    const { x, y } = clampPosition(cropX, cropY, size, img);
+    setZoom(z);
+    setCropSize(size);
+    setCropX(x);
+    setCropY(y);
+  }
 
   function openFile(file: File) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const size = Math.min(img.naturalWidth, img.naturalHeight);
+      URL.revokeObjectURL(url);
+      const maxSize = Math.min(img.naturalWidth, img.naturalHeight);
+      const minSize = Math.max(48, Math.round(maxSize * 0.25));
+      boundsRef.current = { minSize, maxSize };
+      const startX = Math.floor((img.naturalWidth - maxSize) / 2);
+      const startY = Math.floor((img.naturalHeight - maxSize) / 2);
       setCropImage(img);
-      setCropSrc(url);
-      setCropSize(size);
-      setCropX(Math.floor((img.naturalWidth - size) / 2));
-      setCropY(Math.floor((img.naturalHeight - size) / 2));
+      setCropSize(maxSize);
+      setCropX(startX);
+      setCropY(startY);
+      setZoom(0);
       setCropOpen(true);
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      onError("Could not read that image.");
-    };
+    img.onerror = () => onError("Could not read that image.");
     img.src = url;
   }
 
@@ -81,8 +124,6 @@ export function ImageCropUpload({
 
   function closeCrop() {
     setCropOpen(false);
-    if (cropSrc) URL.revokeObjectURL(cropSrc);
-    setCropSrc("");
     setCropImage(null);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -92,8 +133,10 @@ export function ImageCropUpload({
     setUploading(true);
     try {
       const file = await cropSquareToFile(cropImage, cropX, cropY, cropSize, "headshot.jpg");
+      setLocalPreview(URL.createObjectURL(file));
       const path = await uploadGalleryImage(file, folder, folderId);
       onChange(path);
+      await onUploaded?.(path);
       closeCrop();
     } catch (e) {
       onError(e instanceof Error ? e.message : "Upload failed");
@@ -103,6 +146,8 @@ export function ImageCropUpload({
   }
 
   const shape = round ? "rounded-full" : "rounded-xl";
+  const maxX = cropImage ? Math.max(0, cropImage.naturalWidth - cropSize) : 0;
+  const maxY = cropImage ? Math.max(0, cropImage.naturalHeight - cropSize) : 0;
 
   return (
     <div>
@@ -152,11 +197,20 @@ export function ImageCropUpload({
             <div className="mx-auto mb-4 flex justify-center">
               <canvas ref={previewCanvasRef} className={`h-60 w-60 bg-slate-900 ${shape}`} />
             </div>
-            <label className="mb-2 block text-xs font-semibold text-slate-500">Zoom / position (horizontal)</label>
+            <label className="mb-2 block text-xs font-semibold text-slate-500">Zoom</label>
             <input
               type="range"
               min={0}
-              max={Math.max(0, cropImage.naturalWidth - cropSize)}
+              max={100}
+              value={zoom}
+              onChange={(e) => applyZoom(Number(e.target.value), cropImage)}
+              className="mb-3 w-full"
+            />
+            <label className="mb-2 block text-xs font-semibold text-slate-500">Horizontal</label>
+            <input
+              type="range"
+              min={0}
+              max={maxX}
               value={cropX}
               onChange={(e) => setCropX(Number(e.target.value))}
               className="mb-3 w-full"
@@ -165,7 +219,7 @@ export function ImageCropUpload({
             <input
               type="range"
               min={0}
-              max={Math.max(0, cropImage.naturalHeight - cropSize)}
+              max={maxY}
               value={cropY}
               onChange={(e) => setCropY(Number(e.target.value))}
               className="mb-4 w-full"

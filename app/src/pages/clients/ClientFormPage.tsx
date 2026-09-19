@@ -8,7 +8,9 @@ import { CustomFieldsEditor } from "@/components/forms/CustomFieldsEditor";
 import { FormSection } from "@/components/forms/FormSection";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { clientDisplayName } from "@/lib/client-display";
-import { deleteClient, emptyProperty, getClientBundle, saveClientBundle, validateClientFields } from "@/lib/clients";
+import { ClientSelect } from "@/components/forms/ClientSelect";
+import { deleteClient, emptyProperty, getClientBundle, listClients, patchClient, saveClientBundle, validateClientFields } from "@/lib/clients";
+import type { Client } from "@/types/entities";
 import { formatSupabaseError } from "@/lib/supabase-errors";
 import type { ClientContactInput, ClientPropertyInput, CommunicationSettings, CustomField } from "@/types/entities";
 
@@ -27,6 +29,8 @@ type ClientForm = {
   custom_fields: CustomField[];
   billing_same_as_property: boolean;
   status: "lead" | "active" | "inactive";
+  website: string;
+  company_client_id: string;
   notes: string;
 };
 
@@ -42,6 +46,8 @@ const defaultClient = (): ClientForm => ({
   custom_fields: [],
   billing_same_as_property: true,
   status: "lead",
+  website: "",
+  company_client_id: "",
   notes: "",
 });
 
@@ -64,7 +70,14 @@ export function ClientFormPage() {
   const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(true);
   const [propertyContactsOpen, setPropertyContactsOpen] = useState(true);
   const [photoPath, setPhotoPath] = useState("");
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const uploadFolderId = useMemo(() => (isNew ? crypto.randomUUID() : id!), [isNew, id]);
+
+  useEffect(() => {
+    listClients()
+      .then(setAllClients)
+      .catch(() => setAllClients([]));
+  }, []);
 
   useEffect(() => {
     if (isNew) return;
@@ -84,6 +97,8 @@ export function ClientFormPage() {
           custom_fields: c.custom_fields ?? [],
           billing_same_as_property: c.billing_same_as_property ?? true,
           status: c.status,
+          website: c.website ?? "",
+          company_client_id: c.company_client_id ?? "",
           notes: c.notes,
         });
         setPhotoPath(c.photo_path ?? "");
@@ -124,7 +139,11 @@ export function ClientFormPage() {
       }));
       const allContacts = [...contacts, ...propertyContacts];
       const { client: saved, propertiesSkipped } = await saveClientBundle({
-        client: { ...client, photo_path: photoPath },
+        client: {
+          ...client,
+          photo_path: photoPath,
+          company_client_id: client.company_client_id || null,
+        },
         properties: props,
         contacts: allContacts,
         existingId: isNew ? undefined : id,
@@ -169,6 +188,17 @@ export function ClientFormPage() {
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
   const displayPreview = clientDisplayName({ ...client, name: "" });
+  const companyOptions = allClients.filter((c) => c.id !== id);
+  const linkedCompany = companyOptions.find((c) => c.id === client.company_client_id) ?? null;
+
+  async function saveHeadshot(path: string) {
+    if (isNew || !id) return;
+    try {
+      await patchClient(id, { photo_path: path });
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "Could not save headshot");
+    }
+  }
 
   return (
     <div className="pb-24">
@@ -196,6 +226,7 @@ export function ClientFormPage() {
             folderId={uploadFolderId}
             displayName={displayPreview || "Customer photo"}
             onChange={setPhotoPath}
+            onUploaded={saveHeadshot}
             onError={showError}
           />
 
@@ -220,7 +251,43 @@ export function ClientFormPage() {
           </div>
           <label className="block text-sm">
             <span className="mb-1 block font-semibold text-slate-700">Company name</span>
-            <input value={client.company_name} onChange={(e) => setClient({ ...client, company_name: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            <input value={client.company_name} onChange={(e) => setClient({ ...client, company_name: e.target.value })} placeholder="Trading name or employer" className="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          </label>
+
+          <ClientSelect
+            label="Company"
+            emptyLabel="— Link to company client —"
+            clients={companyOptions}
+            value={client.company_client_id}
+            onChange={(company_client_id) => {
+              const picked = companyOptions.find((c) => c.id === company_client_id);
+              setClient((prev) => ({
+                ...prev,
+                company_client_id,
+                company_name: picked ? clientDisplayName(picked) : prev.company_name,
+                website: picked?.website?.trim() ? picked.website : prev.website,
+              }));
+            }}
+            returnTo={isNew ? undefined : `/clients/${id}`}
+          />
+          {linkedCompany && (
+            <p className="-mt-2 text-sm text-slate-500">
+              Linked to{" "}
+              <Link to={`/clients/${linkedCompany.id}`} className="font-semibold text-[var(--mp-orange)] hover:underline">
+                {clientDisplayName(linkedCompany)}
+              </Link>
+            </p>
+          )}
+
+          <label className="block text-sm">
+            <span className="mb-1 block font-semibold text-slate-700">Website</span>
+            <input
+              type="url"
+              value={client.website}
+              onChange={(e) => setClient({ ...client, website: e.target.value })}
+              placeholder="https://example.co.nz"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
           </label>
 
           <div>

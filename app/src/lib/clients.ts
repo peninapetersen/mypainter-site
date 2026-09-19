@@ -75,6 +75,8 @@ function clientPayload(input: Partial<Client>, primary?: ClientPropertyInput) {
     tags: input.tags ?? [],
     status: input.status ?? "lead",
     photo_path: input.photo_path ?? "",
+    website: input.website ?? "",
+    company_client_id: input.company_client_id ?? null,
     notes: input.notes ?? "",
   };
 }
