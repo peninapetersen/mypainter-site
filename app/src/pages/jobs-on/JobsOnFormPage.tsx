@@ -1,10 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Clock, FileText, HardHat, MapPin, Plus, Receipt, Wallet } from "lucide-react";
+import { Camera, Clock, FileText, HardHat, MapPin, Plus, Receipt, Wallet } from "lucide-react";
+import { JobSiteImages } from "@/components/forms/JobSiteImages";
 import { EntityWorkflowBar } from "@/components/workflow/EntityWorkflowBar";
+import { Avatar } from "@/components/ui/Avatar";
 import { FormSaveBar } from "@/components/ui/FormSaveBar";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
+import { getClient } from "@/lib/clients";
+import { resolveCrewPhotoPath } from "@/lib/crew-avatars";
 import { contractorDisplayName, estimateContractorCost, listContractors } from "@/lib/contractors";
 import { listExpensesForJobsOn } from "@/lib/expenses";
 import { resolveJobsOnSiteAddress } from "@/lib/jobs-on-address";
@@ -12,7 +16,7 @@ import { getJobsOn, jobsOnDealValue, listJobsOn, updateJobsOn } from "@/lib/jobs
 import { formatCurrency } from "@/lib/nz";
 import { upsertPipelineForWorkflow } from "@/lib/pipeline";
 import { formatDuration, listTimesheetsForJobsOn } from "@/lib/timesheets";
-import type { Contractor, CrewTimesheet, Expense, JobOn } from "@/types/entities";
+import type { Client, Contractor, CrewTimesheet, Expense, GalleryImage, JobOn } from "@/types/entities";
 
 function statusLabel(status: JobOn["status"]): { text: string; className: string } {
   if (status === "completed") return { text: "Completed", className: "bg-slate-100 text-slate-700" };
@@ -30,13 +34,15 @@ export function JobsOnFormPage() {
   const [search] = useSearchParams();
   const navigate = useNavigate();
   const { showError } = useErrorBanner();
-  const { map: clientNames } = useClientsMap();
+  const { map: clientNames, clients } = useClientsMap();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [row, setRow] = useState<JobOn | null>(null);
   const [timesheets, setTimesheets] = useState<CrewTimesheet[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [jobClient, setJobClient] = useState<Client | null>(null);
+  const [images, setImages] = useState<GalleryImage[]>([]);
   const [form, setForm] = useState({
     title: "",
     site_address: "",
@@ -77,6 +83,7 @@ export function JobsOnFormPage() {
         }
 
         setRow(jobRow);
+        setImages(Array.isArray(jobRow.images) ? jobRow.images : []);
         setForm({
           title: jobRow.title,
           site_address,
@@ -88,14 +95,16 @@ export function JobsOnFormPage() {
           client_id: jobRow.client_id,
         });
 
-        const [ts, ex, cons] = await Promise.all([
+        const [ts, ex, cons, clientRow] = await Promise.all([
           listTimesheetsForJobsOn(id).catch(() => [] as CrewTimesheet[]),
           listExpensesForJobsOn(id).catch(() => [] as Expense[]),
           listContractors().catch(() => [] as Contractor[]),
+          jobRow.client_id ? getClient(jobRow.client_id).catch(() => null) : Promise.resolve(null),
         ]);
         setTimesheets(ts);
         setExpenses(ex);
         setContractors(cons);
+        setJobClient(clientRow);
       } catch (e) {
         showError(e instanceof Error ? e.message : "Load failed");
       } finally {
@@ -106,6 +115,11 @@ export function JobsOnFormPage() {
   }, [id, search, navigate, showError]);
 
   const contractorMap = useMemo(() => new Map(contractors.map((c) => [c.id, c])), [contractors]);
+  const clientForCrew = useMemo(() => {
+    if (jobClient) return jobClient;
+    if (!form.client_id) return null;
+    return clients.find((c) => c.id === form.client_id) ?? null;
+  }, [jobClient, form.client_id, clients]);
 
   const revenue = row ? jobsOnDealValue(row) : 0;
   const expenseTotal = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -125,6 +139,7 @@ export function JobsOnFormPage() {
         site_address: form.site_address,
         notes: form.notes,
         status: form.status,
+        images,
       });
       setRow(updated);
       await upsertPipelineForWorkflow({
@@ -272,12 +287,19 @@ export function JobsOnFormPage() {
                 const est = estimateContractorCost(contractor ?? null, t.duration_seconds ?? 0);
                 return (
                   <li key={t.id} className="flex items-center justify-between gap-2 py-2.5">
-                    <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Avatar
+                        photoPath={resolveCrewPhotoPath(t, { client: clientForCrew, contractors })}
+                        name={t.crew_member}
+                        size={36}
+                      />
+                      <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{t.crew_member}</p>
                       <p className="text-xs text-slate-500">
                         {formatWhen(t.check_in_time)}
                         {contractor ? ` · ${contractorDisplayName(contractor)}` : ""}
                       </p>
+                      </div>
                     </div>
                     <div className="text-right text-sm">
                       <p className="font-semibold">{formatDuration(t.duration_seconds)}</p>
@@ -291,6 +313,14 @@ export function JobsOnFormPage() {
           <Link to="/contractors/list" className="mt-3 inline-block text-xs text-[var(--mp-orange)] hover:underline">
             Manage contractors & rates →
           </Link>
+        </section>
+
+        {/* Site photos */}
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+            <Camera size={14} /> Site photos
+          </h2>
+          <JobSiteImages images={images} onChange={setImages} jobsOnId={id} onError={showError} />
         </section>
 
         {/* Documents */}

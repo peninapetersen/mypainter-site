@@ -1,7 +1,9 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { HardHat } from "lucide-react";
+import { ImageCropUpload } from "@/components/forms/ImageCropUpload";
 import { FormSaveBar } from "@/components/ui/FormSaveBar";
+import { contractorDisplayName } from "@/lib/contractors";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { createContractor, deleteContractor, getContractor, updateContractor } from "@/lib/contractors";
 import { formatSupabaseError } from "@/lib/supabase-errors";
@@ -22,7 +24,9 @@ export function ContractorFormPage() {
     hourly_rate: 0,
     day_rate: 0,
     notes: "",
+    photo_path: "",
   });
+  const uploadFolderId = useMemo(() => (isNew ? crypto.randomUUID() : id!), [isNew, id]);
 
   useEffect(() => {
     if (isNew) return;
@@ -38,6 +42,7 @@ export function ContractorFormPage() {
           hourly_rate: Number(row.hourly_rate) || 0,
           day_rate: Number(row.day_rate) || 0,
           notes: row.notes,
+          photo_path: row.photo_path ?? "",
         });
       })
       .catch((e) => showError(formatSupabaseError(e)))
@@ -95,6 +100,15 @@ export function ContractorFormPage() {
       </div>
 
       <form onSubmit={persist} className="mx-auto max-w-lg space-y-4">
+        <ImageCropUpload
+          label="Photo"
+          photoPath={form.photo_path}
+          folder="contractors"
+          folderId={uploadFolderId}
+          displayName={contractorDisplayName(form) || "Crew photo"}
+          onChange={(photo_path) => setForm({ ...form, photo_path })}
+          onError={showError}
+        />
         <label className="block text-sm">
           <span className="mb-1 block text-xs font-semibold text-slate-500">Company / trading name</span>
           <input

@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ImageCropUpload } from "@/components/forms/ImageCropUpload";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CollapsibleCard } from "@/components/forms/CollapsibleCard";
@@ -62,6 +63,8 @@ export function ClientFormPage() {
   const [clientContactsOpen, setClientContactsOpen] = useState(true);
   const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(true);
   const [propertyContactsOpen, setPropertyContactsOpen] = useState(true);
+  const [photoPath, setPhotoPath] = useState("");
+  const uploadFolderId = useMemo(() => (isNew ? crypto.randomUUID() : id!), [isNew, id]);
 
   useEffect(() => {
     if (isNew) return;
@@ -83,6 +86,7 @@ export function ClientFormPage() {
           status: c.status,
           notes: c.notes,
         });
+        setPhotoPath(c.photo_path ?? "");
         setProperties(
           bundle.properties.length > 0
             ? bundle.properties.map(({ id: _id, user_id: _u, client_id: _c, created_at: _ca, updated_at: _ua, ...rest }) => rest)
@@ -120,7 +124,7 @@ export function ClientFormPage() {
       }));
       const allContacts = [...contacts, ...propertyContacts];
       const { client: saved, propertiesSkipped } = await saveClientBundle({
-        client,
+        client: { ...client, photo_path: photoPath },
         properties: props,
         contacts: allContacts,
         existingId: isNew ? undefined : id,
@@ -185,6 +189,16 @@ export function ClientFormPage() {
           title="Primary contact details"
           description="Provide the main point of contact to ensure smooth communication and reliable client records."
         >
+          <ImageCropUpload
+            label="Headshot"
+            photoPath={photoPath}
+            folder="contacts"
+            folderId={uploadFolderId}
+            displayName={displayPreview || "Customer photo"}
+            onChange={setPhotoPath}
+            onError={showError}
+          />
+
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block text-sm">
               <span className="mb-1 block font-semibold text-slate-700">Title</span>

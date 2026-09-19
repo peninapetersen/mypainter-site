@@ -13,6 +13,8 @@ export type LineItem = {
 
 export type CustomField = { label: string; value: string };
 
+export type GalleryImage = { path: string; caption?: string };
+
 export type CommunicationSettings = { email: boolean; sms: boolean };
 
 export type TaxMode = "exclusive" | "inclusive";
@@ -75,6 +77,8 @@ export type Supplier = {
   default_account_code: string;
   gst_number: string;
   account_code: string;
+  website: string;
+  logo_path: string;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -90,6 +94,7 @@ export type Contractor = {
   trade: string;
   hourly_rate: number;
   day_rate: number;
+  photo_path: string;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -113,6 +118,7 @@ export type Client = {
   tags: string[];
   status: "lead" | "active" | "inactive";
   last_activity_at: string | null;
+  photo_path: string;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -213,6 +219,7 @@ export type JobOn = {
   title: string;
   site_address: string;
   line_items: LineItem[];
+  images: GalleryImage[];
   notes: string;
   status: "draft" | "active" | "completed";
   approved_at: string;

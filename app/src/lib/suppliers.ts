@@ -21,6 +21,8 @@ const OPTIONAL_SUPPLIER_COLUMNS = [
   "tax_mode",
   "default_account_code",
   "gst_number",
+  "website",
+  "logo_path",
 ] as const;
 
 function isSchemaColumnError(message: string): boolean {
@@ -56,6 +58,8 @@ export function emptySupplierFields(): Omit<
     default_account_code: "3100",
     gst_number: "",
     account_code: "",
+    website: "",
+    logo_path: "",
     notes: "",
   };
 }

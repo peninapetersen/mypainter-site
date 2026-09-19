@@ -5,6 +5,7 @@ import { ListEntryLink } from "@/components/ui/ListEntryLink";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListDeleteButton } from "@/components/ui/ListDeleteButton";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
+import { Avatar } from "@/components/ui/Avatar";
 import { deleteSupplier, listSuppliers, supplierDisplayName } from "@/lib/suppliers";
 import type { Supplier } from "@/types/entities";
 
@@ -63,6 +64,7 @@ export function SuppliersListPage() {
         <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
           {rows.map((row) => (
             <li key={row.id} className="flex items-center gap-3 px-4 py-3">
+              <Avatar photoPath={row.logo_path} name={supplierDisplayName(row)} size={36} rounded="lg" />
               <div className="min-w-0 flex-1">
                 <ListEntryLink to={`/suppliers/${row.id}`}>{supplierDisplayName(row)}</ListEntryLink>
                 <p className="truncate text-sm text-slate-500">

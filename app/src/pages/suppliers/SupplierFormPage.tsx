@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Truck } from "lucide-react";
+import { ExternalLink, RefreshCw, Truck } from "lucide-react";
 import { FormSaveBar } from "@/components/ui/FormSaveBar";
+import { Avatar } from "@/components/ui/Avatar";
+import { fetchSupplierLogoFromWebsite } from "@/lib/app-images";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { accountCodeLabel, listAccountCodes } from "@/lib/account-codes";
 import {
@@ -59,6 +61,8 @@ function supplierToForm(row: Supplier) {
     default_account_code: row.default_account_code || row.account_code || "3100",
     gst_number: row.gst_number ?? "",
     account_code: row.account_code,
+    website: row.website ?? "",
+    logo_path: row.logo_path ?? "",
     notes: row.notes,
   };
 }
@@ -73,6 +77,7 @@ export function SupplierFormPage() {
   const [saving, setSaving] = useState(false);
   const [codes, setCodes] = useState<AccountCode[]>([]);
   const [form, setForm] = useState(supplierToForm({ ...emptySupplierFields(), id: "", user_id: "", created_at: "", updated_at: "" }));
+  const [fetchingLogo, setFetchingLogo] = useState(false);
 
   useEffect(() => {
     listAccountCodes({ section: "suppliers" })
@@ -125,6 +130,22 @@ export function SupplierFormPage() {
     }
   }
 
+  async function pullLogo() {
+    if (!form.website.trim()) {
+      showError("Enter a website URL first.");
+      return;
+    }
+    setFetchingLogo(true);
+    try {
+      const { path } = await fetchSupplierLogoFromWebsite(form.website.trim());
+      setForm((f) => ({ ...f, logo_path: path }));
+    } catch (e) {
+      showError(e instanceof Error ? e.message : "Could not fetch logo");
+    } finally {
+      setFetchingLogo(false);
+    }
+  }
+
   async function onDelete() {
     if (!confirm("Delete this supplier?")) return;
     try {
@@ -153,9 +174,13 @@ export function SupplierFormPage() {
       </div>
 
       <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-          <Truck size={22} />
-        </span>
+        {form.logo_path ? (
+          <Avatar photoPath={form.logo_path} name={supplierDisplayName(form)} size={40} rounded="lg" />
+        ) : (
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <Truck size={22} />
+          </span>
+        )}
         <h1 className="text-2xl font-bold text-[var(--mp-navy)]">
           {isNew ? "New supplier" : supplierDisplayName(form)}
         </h1>
@@ -196,6 +221,53 @@ export function SupplierFormPage() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 />
               </label>
+            </div>
+
+            <div>
+              <h3 className="mb-3 text-sm font-bold text-slate-700">Website & logo</h3>
+              <div className="mb-6 flex flex-wrap items-end gap-3">
+                <label className="block min-w-[200px] flex-1 text-sm">
+                  <span className="mb-1 block text-xs font-semibold text-slate-500">Website</span>
+                  <input
+                    type="url"
+                    value={form.website}
+                    onChange={(e) => setForm({ ...form, website: e.target.value })}
+                    placeholder="https://resene.co.nz"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={fetchingLogo || !form.website.trim()}
+                  onClick={pullLogo}
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={fetchingLogo ? "animate-spin" : ""} />
+                  {fetchingLogo ? "Fetching…" : "Pull logo"}
+                </button>
+                {form.website.trim() && (
+                  <a
+                    href={form.website.startsWith("http") ? form.website : `https://${form.website}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 py-2 text-sm text-[var(--mp-orange)] hover:underline"
+                  >
+                    <ExternalLink size={14} /> Visit site
+                  </a>
+                )}
+              </div>
+              {form.logo_path && (
+                <div className="mb-6 flex items-center gap-3">
+                  <Avatar photoPath={form.logo_path} name={supplierDisplayName(form)} size={48} rounded="lg" />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, logo_path: "" })}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Remove logo
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>

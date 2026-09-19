@@ -33,7 +33,7 @@ export async function getJobsOnByQuote(quoteId: string): Promise<JobOn | null> {
   return data as JobOn | null;
 }
 
-const OPTIONAL_JOBS_ON_COLUMNS = ["lead_id", "quote_id", "request_id", "site_address", "line_items", "notes"] as const;
+const OPTIONAL_JOBS_ON_COLUMNS = ["lead_id", "quote_id", "request_id", "site_address", "line_items", "images", "notes"] as const;
 
 async function insertJobsOnRow(row: Record<string, unknown>): Promise<JobOn> {
   const { data, error } = await supabase.from("mp_jobs_on").insert(row).select("*").single();

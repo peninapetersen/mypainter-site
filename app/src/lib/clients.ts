@@ -74,6 +74,7 @@ function clientPayload(input: Partial<Client>, primary?: ClientPropertyInput) {
     billing_same_as_property: input.billing_same_as_property ?? true,
     tags: input.tags ?? [],
     status: input.status ?? "lead",
+    photo_path: input.photo_path ?? "",
     notes: input.notes ?? "",
   };
 }
