@@ -2,7 +2,10 @@ import { GST_RATE } from "@/lib/nz";
 import type { LineItem } from "@/types/entities";
 
 export function calcLineSubtotal(items: LineItem[]): number {
-  return items.reduce((sum, item) => sum + item.qty * item.unitPrice, 0);
+  return items.reduce((sum, item) => {
+    if (item.isText || item.optional) return sum;
+    return sum + item.qty * item.unitPrice;
+  }, 0);
 }
 
 export function calcLineCost(items: LineItem[]): number {

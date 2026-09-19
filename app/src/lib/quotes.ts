@@ -3,6 +3,12 @@ import { calcLineSubtotal, calcQuoteTotals, DEFAULT_QUOTE_TERMS, todayIsoDate, a
 import { supabase } from "@/lib/supabase";
 import type { LineItem, Quote } from "@/types/entities";
 
+export async function peekQuoteNumber(): Promise<string> {
+  const user_id = await requireUserId();
+  const { data: seq } = await supabase.from("mp_quote_seq").select("next_num").eq("user_id", user_id).maybeSingle();
+  return `MP-${seq?.next_num ?? 131}`;
+}
+
 export async function nextQuoteNumber(): Promise<string> {
   const user_id = await requireUserId();
   const { data: seq } = await supabase.from("mp_quote_seq").select("next_num").eq("user_id", user_id).maybeSingle();
@@ -31,6 +37,8 @@ export async function createQuote(input: {
   client_id?: string | null;
   request_id?: string | null;
   title?: string;
+  quote_date?: string | null;
+  valid_until?: string | null;
   line_items?: LineItem[];
   discount?: number;
   gstRegistered?: boolean;
@@ -52,8 +60,8 @@ export async function createQuote(input: {
       request_id: input.request_id ?? null,
       number,
       title: input.title ?? "",
-      quote_date: todayIsoDate(),
-      valid_until: addDaysIsoDate(30),
+      quote_date: input.quote_date ?? todayIsoDate(),
+      valid_until: input.valid_until ?? addDaysIsoDate(30),
       line_items,
       discount,
       subtotal,

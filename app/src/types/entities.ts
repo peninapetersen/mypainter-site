@@ -5,6 +5,8 @@ export type LineItem = {
   unitPrice: number;
   unitCost?: number;
   optional?: boolean;
+  /** Text-only block (Jobber "Add Text") — excluded from totals */
+  isText?: boolean;
 };
 
 export type CustomField = { label: string; value: string };

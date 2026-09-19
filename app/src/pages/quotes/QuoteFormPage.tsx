@@ -1,16 +1,33 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { FileText, Plus } from "lucide-react";
 import { ClientSelect } from "@/components/forms/ClientSelect";
-import { LineItemsEditor } from "@/components/forms/LineItemsEditor";
+import { QuoteContractSection } from "@/components/forms/QuoteContractSection";
+import { QuoteLineItemsCard } from "@/components/forms/QuoteLineItemsCard";
+import { QuoteTotalsPanel } from "@/components/forms/QuoteTotalsPanel";
+import { RequestNotesCard } from "@/components/forms/RequestNotesCard";
 import { useErrorBanner } from "@/context/ErrorBannerContext";
 import { useClientsMap } from "@/hooks/useClientsMap";
 import { calcLineSubtotal, calcQuoteTotals, DEFAULT_QUOTE_TERMS, todayIsoDate, addDaysIsoDate } from "@/lib/line-items";
-import { formatCurrency } from "@/lib/nz";
 import { getRequest } from "@/lib/requests";
-import { createQuote, deleteQuote, getQuote, updateQuote } from "@/lib/quotes";
+import { createQuote, deleteQuote, getQuote, peekQuoteNumber, updateQuote } from "@/lib/quotes";
 import { createJob } from "@/lib/jobs";
 import type { LineItem } from "@/types/entities";
+
+function SectionToolbar({ pills }: { pills: string[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
+      <button type="button" className="flex items-center gap-1 text-sm font-semibold text-slate-600">
+        <Plus size={14} /> Add section
+      </button>
+      {pills.map((p) => (
+        <span key={p} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+          {p}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function QuoteFormPage() {
   const { id } = useParams();
@@ -21,7 +38,11 @@ export function QuoteFormPage() {
   const { clients } = useClientsMap();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [number, setNumber] = useState("");
+  const [previewNumber, setPreviewNumber] = useState("");
+  const [showContract, setShowContract] = useState(true);
+  const [showDiscount, setShowDiscount] = useState(false);
+  const [showTax, setShowTax] = useState(false);
+  const [applyDefaultTerms, setApplyDefaultTerms] = useState(true);
   const [form, setForm] = useState({
     client_id: "",
     request_id: "" as string | null,
@@ -40,6 +61,7 @@ export function QuoteFormPage() {
     async function load() {
       try {
         if (isNew) {
+          setPreviewNumber(await peekQuoteNumber());
           const fromRequest = search.get("fromRequest");
           if (fromRequest) {
             const r = await getRequest(fromRequest);
@@ -58,7 +80,9 @@ export function QuoteFormPage() {
         }
         const q = await getQuote(id!);
         if (!q) throw new Error("Quote not found");
-        setNumber(q.number);
+        setPreviewNumber(q.number);
+        setShowDiscount(Number(q.discount) > 0);
+        setShowTax(Number(q.gst) > 0);
         setForm({
           client_id: q.client_id ?? "",
           request_id: q.request_id,
@@ -82,17 +106,16 @@ export function QuoteFormPage() {
   }, [id, isNew, search, showError]);
 
   const subtotal = calcLineSubtotal(form.line_items);
-  const totals = calcQuoteTotals(subtotal, form.discount, form.gstRegistered);
+  const totals = calcQuoteTotals(subtotal, form.discount, form.gstRegistered || showTax);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function persist() {
     setSaving(true);
     const payload = {
       ...form,
       client_id: form.client_id || null,
       request_id: form.request_id || null,
       ...totals,
-      gstRegistered: form.gstRegistered,
+      gstRegistered: form.gstRegistered || showTax,
     };
     try {
       if (isNew) {
@@ -109,6 +132,11 @@ export function QuoteFormPage() {
     }
   }
 
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await persist();
+  }
+
   async function convertToJob() {
     setSaving(true);
     try {
@@ -116,10 +144,10 @@ export function QuoteFormPage() {
         client_id: form.client_id || null,
         quote_id: id!,
         title: form.title,
-        line_items: form.line_items.map((li) => ({ ...li, unitCost: li.unitCost ?? 0 })),
+        line_items: form.line_items.filter((li) => !li.isText).map((li) => ({ ...li, unitCost: li.unitCost ?? 0 })),
         status: "scheduled",
       });
-      await updateQuote(id!, { status: "approved", gstRegistered: form.gstRegistered });
+      await updateQuote(id!, { status: "approved", gstRegistered: form.gstRegistered || showTax });
       navigate(`/jobs/${j.id}`);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not create job");
@@ -140,91 +168,118 @@ export function QuoteFormPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
+  const displayNum = previewNumber.replace("MP-", "");
+
   return (
-    <div>
-      <PageHeader
-        title={isNew ? "New quote" : `Quote ${number}`}
-        backTo="/quotes/list"
-        actions={
-          !isNew && (
+    <div className="pb-24">
+      <div className="mb-6 flex items-start justify-between">
+        <Link to="/quotes" className="text-sm text-slate-500 hover:text-slate-800">
+          ← Back
+        </Link>
+        {!isNew && (
+          <div className="flex gap-2">
             <button type="button" onClick={convertToJob} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
               → Create job
             </button>
-          )
-        }
-      />
-      <form onSubmit={onSubmit} className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2">
-            <label className="block text-sm font-semibold">
-              Client
-              <div className="mt-1">
-                <ClientSelect clients={clients} value={form.client_id} onChange={(v) => setForm({ ...form, client_id: v })} />
-              </div>
-            </label>
-            <label className="block text-sm font-semibold">
-              Title *
-              <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold">
-                Quote date
-                <input type="date" value={form.quote_date} onChange={(e) => setForm({ ...form, quote_date: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" />
-              </label>
-              <label className="block text-sm font-semibold">
-                Valid until
-                <input type="date" value={form.valid_until} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" />
-              </label>
-            </div>
-            <label className="block text-sm font-semibold">
-              Status
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })} className="mt-1 w-full rounded-lg border px-3 py-2">
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="approved">Approved</option>
-                <option value="declined">Declined</option>
-              </select>
-            </label>
-            <label className="block text-sm font-semibold">
-              Terms
-              <textarea value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} rows={3} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="block text-sm font-semibold">
-              Internal notes
-              <textarea value={form.internal_notes} onChange={(e) => setForm({ ...form, internal_notes: e.target.value })} rows={2} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
+            <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
+              Delete
+            </button>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-6 h-fit">
-            <h2 className="mb-4 font-bold">Totals</h2>
-            <label className="mb-3 flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.gstRegistered} onChange={(e) => setForm({ ...form, gstRegistered: e.target.checked })} />
-              GST registered (15%)
-            </label>
-            <label className="mb-3 block text-sm font-semibold">
-              Discount $
-              <input type="number" min={0} step={0.01} value={form.discount} onChange={(e) => setForm({ ...form, discount: parseFloat(e.target.value) || 0 })} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatCurrency(totals.subtotal)}</dd></div>
-              {form.gstRegistered && <div className="flex justify-between"><dt>GST</dt><dd>{formatCurrency(totals.gst)}</dd></div>}
-              <div className="flex justify-between border-t pt-2 text-lg font-bold"><dt>Total</dt><dd>{formatCurrency(totals.total)}</dd></div>
-            </dl>
+        )}
+      </div>
+
+      <div className="mb-6 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 text-red-500">
+          <FileText size={22} />
+        </span>
+        <h1 className="text-2xl font-bold text-[var(--mp-navy)]">{isNew ? "New Quote" : previewNumber}</h1>
+      </div>
+
+      <form onSubmit={onSubmit} className="mx-auto max-w-3xl space-y-6">
+        <input
+          required
+          placeholder="Title"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+          <ClientSelect clients={clients} value={form.client_id} onChange={(v) => setForm({ ...form, client_id: v })} />
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Quote #</label>
+            <input readOnly value={displayNum} className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm" />
+            <p className="mt-1 text-xs text-slate-400">
+              Customize{" "}
+              <button type="button" className="font-semibold text-[var(--mp-orange)] underline" onClick={() => alert("Custom fields — Phase 5")}>
+                Add Field
+              </button>
+            </p>
           </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="mb-4 font-bold">Line items</h2>
-          <LineItemsEditor items={form.line_items} onChange={(line_items) => setForm({ ...form, line_items })} />
+
+        <SectionToolbar pills={["Introduction"]} />
+
+        <QuoteLineItemsCard items={form.line_items} onChange={(line_items) => setForm({ ...form, line_items })} />
+
+        <div className="rounded-lg border border-slate-200 bg-white p-6">
+          <QuoteTotalsPanel
+            subtotal={totals.subtotal}
+            discount={form.discount}
+            gst={totals.gst}
+            total={totals.total}
+            gstRegistered={form.gstRegistered || showTax}
+            showDiscount={showDiscount || form.discount > 0}
+            showTax={showTax || form.gstRegistered}
+            onToggleDiscount={() => setShowDiscount(true)}
+            onToggleTax={() => {
+              setShowTax(true);
+              setForm({ ...form, gstRegistered: true });
+            }}
+            onDiscountChange={(discount) => setForm({ ...form, discount })}
+          />
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button type="submit" disabled={saving} className="rounded-lg bg-[var(--mp-orange)] px-5 py-2 font-bold text-white disabled:opacity-60">
-            {saving ? "Saving…" : "Save"}
+
+        <SectionToolbar pills={["Attachments", "Images", "Client Message"]} />
+
+        {showContract && (
+          <QuoteContractSection
+            terms={form.terms}
+            onChange={(terms) => setForm({ ...form, terms })}
+            onRemove={() => setShowContract(false)}
+            applyDefault={applyDefaultTerms}
+            onApplyDefaultChange={setApplyDefaultTerms}
+          />
+        )}
+
+        {!showContract && (
+          <button
+            type="button"
+            onClick={() => setShowContract(true)}
+            className="text-sm font-semibold text-[var(--mp-orange)] underline"
+          >
+            + Add Contract / Disclaimer
           </button>
-          <Link to="/quotes" className="rounded-lg border px-5 py-2 font-semibold">Cancel</Link>
-          {!isNew && (
-            <button type="button" onClick={onDelete} className="ml-auto text-sm text-red-600 hover:underline">Delete</button>
-          )}
-        </div>
+        )}
+
+        <RequestNotesCard notes={form.internal_notes} onChange={(internal_notes) => setForm({ ...form, internal_notes })} />
       </form>
+
+      <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-slate-200 bg-white px-4 py-3 md:left-56">
+        <div className="mx-auto flex max-w-3xl items-center justify-end gap-3">
+          <Link to="/quotes" className="rounded-lg border border-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-[var(--mp-orange)]">
+            Cancel
+          </Link>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => persist()}
+            className="rounded-lg bg-[var(--mp-orange)] px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save Quote"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
