@@ -5,6 +5,22 @@ import { supabase } from "@/lib/supabase";
 import { DEFAULT_CONTACT_LIST_COLUMNS, mergeContactListColumns, type ContactListColumnsConfig } from "@/lib/contact-list-columns";
 import type { WorkSettings } from "@/types/entities";
 
+/** Owner workspace when logged in as a team member; otherwise own user id. */
+async function requireWorkspaceUserId(): Promise<string> {
+  const authUserId = await requireUserId();
+  const { data, error } = await supabase
+    .from("mp_team_members")
+    .select("owner_user_id")
+    .eq("member_user_id", authUserId)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (error.code === "42P01" || /does not exist/i.test(error.message ?? "")) return authUserId;
+    throw error;
+  }
+  return data?.owner_user_id ?? authUserId;
+}
+
 export const ARRIVAL_WINDOWS = ["None", "15 min", "30 min", "1 hr", "2 hr", "3 hr", "4 hr"] as const;
 
 export const PAYMENT_TERMS_ALL = [
@@ -49,7 +65,7 @@ export function defaultWorkSettings(): Omit<WorkSettings, "user_id" | "created_a
 }
 
 export async function getWorkSettings(): Promise<WorkSettings> {
-  const user_id = await requireUserId();
+  const user_id = await requireWorkspaceUserId();
   const { data, error } = await supabase.from("mp_work_settings").select("*").eq("user_id", user_id).maybeSingle();
   if (error) throw error;
   if (data) {
@@ -75,7 +91,7 @@ export async function getWorkSettings(): Promise<WorkSettings> {
 }
 
 export async function saveWorkSettings(input: Partial<WorkSettings>): Promise<WorkSettings> {
-  const user_id = await requireUserId();
+  const user_id = await requireWorkspaceUserId();
   const { user_id: _u, created_at: _c, updated_at: _up, ...patch } = input as WorkSettings;
   const { data, error } = await supabase
     .from("mp_work_settings")
