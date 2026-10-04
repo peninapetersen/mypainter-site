@@ -15,3 +15,6 @@ alter table public.mp_work_settings add column if not exists default_tax_mode te
 alter table public.mp_work_settings add column if not exists contact_list_columns jsonb not null default '{}'::jsonb;
 
 comment on column public.mp_work_settings.contact_list_columns is 'Visible columns per contacts menu list — customers, companies, suppliers, contractors';
+
+-- Force PostgREST / API to see new columns (fixes "schema cache" errors)
+notify pgrst, 'reload schema';

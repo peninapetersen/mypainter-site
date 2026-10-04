@@ -30,7 +30,12 @@ export function TaxAccountingPage() {
     if (!settings) return;
     setSaving(true);
     try {
-      const saved = await saveWorkSettings(settings);
+      const saved = await saveWorkSettings({
+        gst_rate: settings.gst_rate,
+        gst_default_on_quotes: settings.gst_default_on_quotes,
+        gst_default_on_invoices: settings.gst_default_on_invoices,
+        default_tax_mode: settings.default_tax_mode,
+      });
       setSettings(saved);
     } catch (err) {
       showError(formatSupabaseError(err));
