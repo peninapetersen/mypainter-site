@@ -504,6 +504,10 @@ export function QuoteFormPage() {
               setShowTax(true);
               setForm({ ...form, gstRegistered: true });
             }}
+            onRemoveTax={() => {
+              setShowTax(false);
+              setForm({ ...form, gstRegistered: false });
+            }}
             onDiscountChange={(discount) => setForm({ ...form, discount })}
             gstLabel={formatGstLabel({ gst_rate: gstRate })}
           />

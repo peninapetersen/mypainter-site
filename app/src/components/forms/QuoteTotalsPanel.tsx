@@ -11,6 +11,7 @@ export function QuoteTotalsPanel({
   showTax,
   onToggleDiscount,
   onToggleTax,
+  onRemoveTax,
   onDiscountChange,
   gstLabel = "GST (15%)",
 }: {
@@ -23,6 +24,7 @@ export function QuoteTotalsPanel({
   showTax: boolean;
   onToggleDiscount: () => void;
   onToggleTax: () => void;
+  onRemoveTax?: () => void;
   onDiscountChange: (n: number) => void;
   gstLabel?: string;
 }) {
@@ -60,8 +62,15 @@ export function QuoteTotalsPanel({
           </button>
         )}
         {showTax || gstRegistered ? (
-          <div className="flex justify-between">
-            <span>{gstLabel}</span>
+          <div className="flex justify-between gap-2">
+            <span>
+              {gstLabel}{" "}
+              {onRemoveTax ? (
+                <button type="button" onClick={onRemoveTax} className="font-semibold text-[var(--mp-orange)] underline">
+                  Remove
+                </button>
+              ) : null}
+            </span>
             <span>{formatCurrency(gst)}</span>
           </div>
         ) : (
