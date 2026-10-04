@@ -35,7 +35,7 @@ function stepLabel(key: StepKey, chain: WorkflowChain): string {
 function nextAction(
   current: StepKey | null,
   chain: WorkflowChain,
-): { label: string; to: string } | null {
+): { label: string; to?: string; action?: "send_quote" } | null {
   if (!current) return null;
   if (current === "request" && !chain.lead && chain.request) {
     return { label: "Schedule lead visit", to: `/leads/new?fromRequest=${chain.request.id}` };
@@ -47,7 +47,8 @@ function nextAction(
     if (chain.quote.status === "approved") {
       return { label: "Open Jobs On", to: `/jobs-on/list` };
     }
-    return { label: "Send quote", to: `/quotes/${chain.quote.id}` };
+    const sent = chain.quote.status === "sent" || !!chain.quote.approval_token;
+    return { label: sent ? "Copy quote link" : "Send quote", action: "send_quote" };
   }
   if (current === "quote" && chain.quote && chain.jobsOn) {
     if (chain.jobsOn.status === "draft") {
@@ -74,13 +75,18 @@ function Divider() {
 export function EntityWorkflowBar({
   anchor,
   current,
+  actionHandlers,
 }: {
   anchor: WorkflowAnchor;
   current: StepKey | "expense" | "timesheet" | null;
+  actionHandlers?: {
+    send_quote?: () => void | Promise<void>;
+  };
 }) {
   const navigate = useNavigate();
   const [chain, setChain] = useState<WorkflowChain | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,16 +178,28 @@ export function EntityWorkflowBar({
         </>
       )}
 
-      {action?.to && (
+      {action && (action.to || action.action) && (
         <>
           <Divider />
           <button
             type="button"
-            onClick={() => navigate(action.to)}
-            className="inline-flex items-center gap-0.5 rounded bg-[var(--mp-orange)] px-2 py-0.5 text-[10px] font-bold text-white hover:opacity-90"
+            disabled={actionBusy}
+            onClick={async () => {
+              if (action.action === "send_quote" && actionHandlers?.send_quote) {
+                setActionBusy(true);
+                try {
+                  await actionHandlers.send_quote();
+                } finally {
+                  setActionBusy(false);
+                }
+                return;
+              }
+              if (action.to) navigate(action.to);
+            }}
+            className="inline-flex items-center gap-0.5 rounded bg-[var(--mp-orange)] px-2 py-0.5 text-[10px] font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
-            Next: {action.label}
-            <ArrowRight size={10} />
+            {actionBusy ? "Working…" : `Next: ${action.label}`}
+            {!actionBusy && <ArrowRight size={10} />}
           </button>
           {current === "request" && chain.request && !chain.lead && (
             <button

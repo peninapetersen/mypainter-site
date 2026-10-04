@@ -324,12 +324,19 @@ export function QuoteFormPage() {
       showError("Save the quote first, then send it.");
       return;
     }
+    if (form.status === "approved") {
+      showError("Quote is already approved — use Unapprove if you need to change it.");
+      return;
+    }
     setSending(true);
     try {
       const { url } = await sendQuoteToCustomer(id!, window.location.origin);
       setApprovalUrl(url);
       setForm((f) => ({ ...f, status: "sent" }));
-      await navigator.clipboard.writeText(url).catch(() => {});
+      const copied = await navigator.clipboard.writeText(url).then(() => true).catch(() => false);
+      if (!copied) {
+        showError("Link created — copy it from the blue box below (clipboard blocked).");
+      }
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not send quote");
     } finally {
@@ -388,6 +395,16 @@ export function QuoteFormPage() {
             <Eye size={16} />
             View
           </button>
+          {!isNew && form.status !== "approved" && (
+            <button
+              type="button"
+              onClick={() => void sendToCustomer()}
+              disabled={saving || sending}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--mp-orange)] px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {sending ? "Sending…" : approvalUrl || form.status === "sent" ? "Copy quote link" : "Send quote"}
+            </button>
+          )}
           {!isNew && form.status === "approved" && (
             <button
               type="button"
@@ -411,7 +428,9 @@ export function QuoteFormPage() {
         </div>
       </div>
 
-      {!isNew && <EntityWorkflowBar anchor={{ quoteId: id }} current="quote" />}
+      {!isNew && (
+        <EntityWorkflowBar anchor={{ quoteId: id }} current="quote" actionHandlers={{ send_quote: sendToCustomer }} />
+      )}
       {isNew && form.job_id && <EntityWorkflowBar anchor={{ jobId: form.job_id }} current="quote" />}
       {isNew && !form.job_id && form.request_id && <EntityWorkflowBar anchor={{ requestId: form.request_id }} current="quote" />}
 
