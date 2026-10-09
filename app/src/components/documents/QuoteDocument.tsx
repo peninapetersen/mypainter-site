@@ -23,10 +23,9 @@ export type QuoteDocumentData = {
   profile?: DocumentProfile;
 };
 
-/** `docLabel` is "Quote" normally and "Report" when the quote is shown as a report. */
-export function QuoteDocument({ data, docLabel = "Quote" }: { data: QuoteDocumentData; docLabel?: string }) {
+export function QuoteDocument({ data }: { data: QuoteDocumentData }) {
   return (
-    <DocumentShell docLabel={docLabel} docNumber={data.number} accent="quote" profile={data.profile}>
+    <DocumentShell docLabel="Quote" docNumber={data.number} accent="quote" profile={data.profile}>
       <div className="mb-8 grid gap-8 sm:grid-cols-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Prepared for</p>
@@ -35,7 +34,7 @@ export function QuoteDocument({ data, docLabel = "Quote" }: { data: QuoteDocumen
           {data.clientEmail && <p className="mt-1 text-sm text-slate-500">{data.clientEmail}</p>}
         </div>
         <div className="sm:text-right">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{docLabel} details</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Quote details</p>
           {data.title && <p className="mt-1 font-semibold text-slate-800">{data.title}</p>}
           {data.quote_date && (
             <p className="mt-1 text-sm text-slate-600">

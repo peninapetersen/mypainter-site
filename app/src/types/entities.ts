@@ -482,3 +482,33 @@ export type RequestInsert = Omit<Request, "id" | "created_at" | "updated_at">;
 export type QuoteInsert = Omit<Quote, "id" | "created_at" | "updated_at">;
 export type JobInsert = Omit<Job, "id" | "created_at" | "updated_at">;
 export type InvoiceInsert = Omit<Invoice, "id" | "created_at" | "updated_at">;
+
+/** One area of an assessment: what was found, what to do, and photos (storage paths in the mypainter-reports bucket). */
+export type ReportArea = {
+  id: string;
+  area: string;
+  finding: string;
+  recommended: string;
+  photos: string[];
+};
+
+/** An assessment Richo sends to a customer. No prices. */
+export type Report = {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  quote_id: string | null;
+  number: string;
+  title: string;
+  report_date: string | null;
+  site_address: string;
+  summary: string;
+  areas: ReportArea[];
+  recommendations: string;
+  status: "draft" | "sent";
+  view_token: string | null;
+  sent_at: string | null;
+  internal_notes: string;
+  created_at: string;
+  updated_at: string;
+};

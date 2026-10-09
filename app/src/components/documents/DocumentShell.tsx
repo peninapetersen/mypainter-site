@@ -8,12 +8,15 @@ export function DocumentShell({
   children,
   accent = "quote",
   profile,
+  flow = false,
 }: {
   docLabel: string;
   docNumber: string;
   children: ReactNode;
   accent?: "quote" | "invoice";
   profile?: DocumentProfile;
+  /** Let the page grow with its content (reports with photos) instead of one fixed A4 page. */
+  flow?: boolean;
 }) {
   const p = profile ?? {
     name: BUSINESS_PROFILE.name,
@@ -30,7 +33,7 @@ export function DocumentShell({
     <article className="document-sheet text-slate-800">
       <div className="doc-accent-bar" />
 
-      <div className="flex h-[calc(297mm-4px)] flex-col px-[14mm] pb-[12mm] pt-[10mm]">
+      <div className={`flex flex-col px-[14mm] pb-[12mm] pt-[10mm] ${flow ? "min-h-[calc(297mm-4px)]" : "h-[calc(297mm-4px)]"}`}>
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-4 border-b-2 border-[#fdd85d] pb-4">
           <div className="min-w-[140px]">
             <img src={p.logoUrl} alt={p.name} className="doc-logo" width={200} height={56} decoding="async" />
@@ -45,7 +48,7 @@ export function DocumentShell({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden pt-4">{children}</div>
+        <div className={`min-h-0 flex-1 pt-4 ${flow ? "" : "overflow-hidden"}`}>{children}</div>
 
         <div className="mt-auto shrink-0 border-t border-slate-200 pt-3 text-[9pt] text-slate-600">
           <div className="flex flex-wrap items-end justify-between gap-2">

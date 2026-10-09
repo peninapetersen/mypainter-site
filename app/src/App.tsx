@@ -19,6 +19,8 @@ import { RequestsListPage } from "@/pages/requests/RequestsListPage";
 import { RequestFormPage } from "@/pages/requests/RequestFormPage";
 import { QuotesListPage } from "@/pages/quotes/QuotesListPage";
 import { QuoteFormPage } from "@/pages/quotes/QuoteFormPage";
+import { ReportsListPage } from "@/pages/reports/ReportsListPage";
+import { ReportFormPage } from "@/pages/reports/ReportFormPage";
 import { JobsListPage } from "@/pages/jobs/JobsListPage";
 import { JobFormPage } from "@/pages/jobs/JobFormPage";
 import { JobsOnListPage } from "@/pages/jobs-on/JobsOnListPage";
@@ -103,6 +105,13 @@ export default function App() {
             <Route path="list" element={<QuotesListPage />} />
             <Route path="new" element={<QuoteFormPage />} />
             <Route path=":id" element={<QuoteFormPage />} />
+          </Route>
+
+          <Route path="reports" element={<Outlet />}>
+            <Route index element={<Navigate to="/reports/list" replace />} />
+            <Route path="list" element={<ReportsListPage />} />
+            <Route path="new" element={<ReportFormPage />} />
+            <Route path=":id" element={<ReportFormPage />} />
           </Route>
 
           <Route path="leads" element={<Outlet />}>

@@ -69,10 +69,6 @@
       return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    const AS_REPORT = new URLSearchParams(location.search).get("doc") === "report";
-    const DOC = AS_REPORT ? "Report" : "Quote";
-    if (AS_REPORT) document.title = "Report — MyPainter";
-
     function renderQuote(data) {
       const q = data.quote;
       const c = data.client || {};
@@ -85,9 +81,7 @@
         </div>`).join("");
 
       let actions = "";
-      if (AS_REPORT) {
-        actions = "";
-      } else if (q.status === "approved") {
+      if (q.status === "approved") {
         actions = '<div class="ok"><strong>Approved.</strong> Richard will be in touch to schedule the work.</div>';
       } else if (q.status === "declined") {
         actions = "<p>This quote was declined.</p>";
@@ -106,7 +100,7 @@
         <div class="quote-top">
           <img class="quote-logo" src="/images/logo.png" alt="mypainter.co.nz" width="200" height="75" />
           <div class="quote-meta">
-            <div class="num">${DOC}: ${esc(q.number)}</div>
+            <div class="num">Quote: ${esc(q.number)}</div>
             ${q.quote_date ? "<div>Date: " + fmtDate(q.quote_date) + "</div>" : ""}
             ${q.valid_until ? "<div>Valid until: " + fmtDate(q.valid_until) + "</div>" : ""}
           </div>

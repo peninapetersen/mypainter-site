@@ -6,6 +6,8 @@ export type Database = {
       mp_requests: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
       mp_quotes: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
       mp_quote_seq: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
+      mp_reports: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
+      mp_report_seq: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
       mp_jobs: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
       mp_invoices: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> };
     };

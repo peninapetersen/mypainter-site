@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en-NZ">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Report — MyPainter</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/quote.css?v=a4" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { background: #cfc9bc; font-family: Inter, system-ui, sans-serif; }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: center;
+      padding: 0.75rem 1rem; background: #0f3a5f; color: #fff;
+    }
+    .toolbar button, .toolbar a {
+      border: 0; border-radius: 8px; padding: 0.65rem 1rem; font-weight: 700; cursor: pointer;
+      text-decoration: none; font: inherit; color: #1a1a1a; background: #fdd85d;
+    }
+    .toolbar a.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.4); }
+    .wrap { display: flex; justify-content: center; padding: 1.25rem 0.75rem 2rem; }
+    /* a report grows with its content (photos), unlike the one-page quote */
+    .quote-sheet { width: 210mm !important; max-width: 100%; height: auto !important; min-height: 297mm !important; max-height: none !important; overflow: visible !important; box-shadow: 0 8px 30px rgba(0,0,0,0.18); }
+    .rp-area { border: 1px solid #e5e0d6; border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; break-inside: avoid; }
+    .rp-area h3 { margin: 0 0 0.35rem; font-size: 12pt; color: #0f3a5f; }
+    .rp-area p { margin: 0.2rem 0; font-size: 11pt; line-height: 1.45; white-space: pre-wrap; }
+    .rp-area .lbl { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; }
+    .rp-photos { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+    .rp-photos img { width: 48%; max-width: 330px; border-radius: 6px; border: 1px solid #e5e0d6; object-fit: cover; }
+    .rp-text { font-size: 11pt; line-height: 1.5; white-space: pre-wrap; }
+    @media print {
+      .toolbar, .no-print { display: none !important; }
+      .wrap { padding: 0 !important; display: block !important; }
+      body { background: #fff !important; }
+      .quote-sheet { box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print" id="toolbar">
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+    <a href="/" class="ghost">mypainter.co.nz</a>
+  </div>
+  <div class="wrap">
+    <article class="quote-sheet" id="sheet">Loading report…</article>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    const sheet = document.getElementById("sheet");
+
+    function fmtDate(iso) {
+      if (!iso) return "";
+      const d = new Date(iso + "T12:00:00");
+      return d.toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
+    }
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function render(data) {
+      const r = data.report;
+      const c = data.client || {};
+      const clientName = c.display_name || c.name || "Customer";
+      const areas = (r.areas || []).map((a) => `
+        <div class="rp-area">
+          <h3>${esc(a.area || "Area")}</h3>
+          ${a.finding ? '<p class="lbl">What we found</p><p>' + esc(a.finding) + "</p>" : ""}
+          ${a.recommended ? '<p class="lbl">Recommended work</p><p>' + esc(a.recommended) + "</p>" : ""}
+          ${a.photos && a.photos.length ? '<div class="rp-photos">' + a.photos.map((u) => '<img src="' + esc(u) + '" alt="' + esc(a.area || "Photo") + '" loading="lazy" />').join("") + "</div>" : ""}
+        </div>`).join("");
+
+      sheet.innerHTML = `
+        <div class="quote-top">
+          <img class="quote-logo" src="/images/logo.png" alt="mypainter.co.nz" width="200" height="75" />
+          <div class="quote-meta">
+            <div class="num">Report: ${esc(r.number)}</div>
+            ${r.report_date ? "<div>Date: " + fmtDate(r.report_date) + "</div>" : ""}
+          </div>
+        </div>
+        <div class="quote-parties">
+          <div class="quote-party">
+            <h3>Prepared for</h3>
+            <p><strong>${esc(clientName)}</strong></p>
+            ${r.site_address ? "<p>Site: " + esc(r.site_address).replace(/\n/g, "<br/>") + "</p>" : (c.address ? "<p>" + esc(c.address).replace(/\n/g, "<br/>") + "</p>" : "")}
+            ${c.email ? "<p>" + esc(c.email) + "</p>" : ""}
+          </div>
+          <div class="quote-party">
+            <h3>From</h3>
+            <p><strong>Richard Petersen</strong></p>
+            <p>MyPainter · Whangarei</p>
+            <p>021 083 01415</p>
+            <p>mypaintermate@gmail.com</p>
+          </div>
+        </div>
+        ${r.title ? '<h1 class="quote-title">' + esc(r.title) + "</h1>" : ""}
+        ${r.summary ? '<div class="quote-section"><h2>Summary</h2><div class="rp-text">' + esc(r.summary) + "</div></div>" : ""}
+        ${areas ? '<div class="quote-section"><h2>Areas assessed</h2>' + areas + "</div>" : ""}
+        ${r.recommendations ? '<div class="quote-section"><h2>Recommendations and next steps</h2><div class="rp-text">' + esc(r.recommendations) + "</div></div>" : ""}
+        <div class="quote-footer">mypainter.co.nz · Painting &amp; Handyman · Northland</div>`;
+
+      document.title = "Report " + r.number + " — MyPainter";
+    }
+
+    if (!token) {
+      sheet.textContent = "Missing report link.";
+    } else {
+      fetch("/api/public/report-view/" + encodeURIComponent(token))
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.error) throw new Error(data.error);
+          render(data);
+          if (params.get("print") === "1") {
+            const imgs = Array.from(document.images).filter((i) => !i.complete);
+            Promise.all(imgs.map((i) => new Promise((res) => { i.onload = i.onerror = res; }))).then(() => setTimeout(() => window.print(), 300));
+          }
+        })
+        .catch((e) => { sheet.textContent = e.message || "Could not load report."; });
+    }
+  </script>
+</body>
+</html>

@@ -32,6 +32,7 @@ import {
   unapproveQuote,
   updateQuote,
 } from "@/lib/quotes";
+import { createReportFromQuote } from "@/lib/reports";
 import { getJobsOnByQuote } from "@/lib/jobs-on";
 import { ensureJobsOnForApprovedQuote } from "@/lib/jobs-on-sync";
 import type { LineItem } from "@/types/entities";
@@ -249,14 +250,12 @@ export function QuoteFormPage() {
     await persist();
   }
 
-  const [asReport, setAsReport] = useState(false);
-
   async function openQuotePrint() {
     if (isNew || !id) return;
 
     function openPrintTab(url: string) {
       const sep = url.includes("?") ? "&" : "?";
-      const w = window.open(`${url}${sep}print=1${asReport ? "&doc=report" : ""}`, "_blank", "noopener");
+      const w = window.open(`${url}${sep}print=1`, "_blank", "noopener");
       if (!w) showError("Pop-up blocked — allow pop-ups for mypainter.co.nz, then try again.");
     }
 
@@ -346,6 +345,23 @@ export function QuoteFormPage() {
     }
   }
 
+  async function createReportFromThisQuote() {
+    if (isNew || !id) {
+      showError("Save the quote first, then create a report from it.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const client = clients.find((c) => c.id === form.client_id);
+      const report = await createReportFromQuote(id, client?.address ?? "");
+      navigate(`/reports/${report.id}`);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not create the report");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function convertToInvoice() {
     if (isNew) {
       showError("Save the quote first, then create an invoice.");
@@ -421,6 +437,9 @@ export function QuoteFormPage() {
             <>
               <button type="button" onClick={convertToInvoice} disabled={saving} className="rounded-lg bg-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-white">
                 → Create invoice
+              </button>
+              <button type="button" onClick={createReportFromThisQuote} disabled={saving} className="rounded-lg border border-[var(--mp-navy)] px-4 py-2 text-sm font-bold text-[var(--mp-navy)]">
+                → Create report
               </button>
               <button type="button" onClick={onDelete} className="text-sm text-red-600 hover:underline">
                 Delete
@@ -563,12 +582,8 @@ export function QuoteFormPage() {
 
       <DocumentPreviewModal
         open={showPreview}
-        title={`${asReport ? "Report" : "Quote"} ${quoteDoc.number}`}
-        onClose={() => {
-          setShowPreview(false);
-          setAsReport(false);
-        }}
-        extraAction={{ label: asReport ? "Back to quote" : "Make report", onClick: () => setAsReport((v) => !v) }}
+        title={`Quote ${quoteDoc.number}`}
+        onClose={() => setShowPreview(false)}
         onSend={sendToCustomer}
         sending={sending}
         sendDisabled={isNew}
@@ -581,7 +596,7 @@ export function QuoteFormPage() {
         customerEmail={customerEmail || undefined}
         onPrint={!isNew ? openQuotePrint : undefined}
       >
-        <QuoteDocument data={quoteDoc} docLabel={asReport ? "Report" : "Quote"} />
+        <QuoteDocument data={quoteDoc} />
       </DocumentPreviewModal>
     </div>
   );
