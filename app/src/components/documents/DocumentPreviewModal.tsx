@@ -15,6 +15,7 @@ export function DocumentPreviewModal({
   customerEmail,
   printUrl,
   onPrint,
+  extraAction,
 }: {
   open: boolean;
   title: string;
@@ -31,6 +32,8 @@ export function DocumentPreviewModal({
   printUrl?: string;
   /** Prefer this for quotes — opens quote-view.html etc. */
   onPrint?: () => void | Promise<void>;
+  /** An extra button at the end of the toolbar (the quote preview uses it for "Make report"). */
+  extraAction?: { label: string; onClick: () => void };
 }) {
   if (!open) return null;
 
@@ -99,6 +102,15 @@ export function DocumentPreviewModal({
               className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/10"
             >
               Email
+            </button>
+          )}
+          {extraAction && (
+            <button
+              type="button"
+              onClick={extraAction.onClick}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/40 bg-white/15 px-3 py-1.5 text-xs font-bold hover:bg-white/25"
+            >
+              {extraAction.label}
             </button>
           )}
           <button type="button" onClick={onClose} className="rounded-lg p-1.5 hover:bg-white/10" aria-label="Close">

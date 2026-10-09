@@ -249,12 +249,14 @@ export function QuoteFormPage() {
     await persist();
   }
 
+  const [asReport, setAsReport] = useState(false);
+
   async function openQuotePrint() {
     if (isNew || !id) return;
 
     function openPrintTab(url: string) {
       const sep = url.includes("?") ? "&" : "?";
-      const w = window.open(`${url}${sep}print=1`, "_blank", "noopener");
+      const w = window.open(`${url}${sep}print=1${asReport ? "&doc=report" : ""}`, "_blank", "noopener");
       if (!w) showError("Pop-up blocked — allow pop-ups for mypainter.co.nz, then try again.");
     }
 
@@ -561,8 +563,12 @@ export function QuoteFormPage() {
 
       <DocumentPreviewModal
         open={showPreview}
-        title={`Quote ${quoteDoc.number}`}
-        onClose={() => setShowPreview(false)}
+        title={`${asReport ? "Report" : "Quote"} ${quoteDoc.number}`}
+        onClose={() => {
+          setShowPreview(false);
+          setAsReport(false);
+        }}
+        extraAction={{ label: asReport ? "Back to quote" : "Make report", onClick: () => setAsReport((v) => !v) }}
         onSend={sendToCustomer}
         sending={sending}
         sendDisabled={isNew}
@@ -575,7 +581,7 @@ export function QuoteFormPage() {
         customerEmail={customerEmail || undefined}
         onPrint={!isNew ? openQuotePrint : undefined}
       >
-        <QuoteDocument data={quoteDoc} />
+        <QuoteDocument data={quoteDoc} docLabel={asReport ? "Report" : "Quote"} />
       </DocumentPreviewModal>
     </div>
   );
