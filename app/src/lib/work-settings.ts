@@ -6,7 +6,7 @@ import { DEFAULT_CONTACT_LIST_COLUMNS, mergeContactListColumns, type ContactList
 import type { WorkSettings } from "@/types/entities";
 
 /** Owner workspace when logged in as a team member; otherwise own user id. */
-async function requireWorkspaceUserId(): Promise<string> {
+export async function requireWorkspaceUserId(): Promise<string> {
   const authUserId = await requireUserId();
   const { data, error } = await supabase
     .from("mp_team_members")

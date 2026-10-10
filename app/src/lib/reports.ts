@@ -1,4 +1,4 @@
-import { requireUserId } from "@/lib/auth";
+import { requireWorkspaceUserId } from "@/lib/work-settings";
 import { prepareImageFile } from "@/lib/app-images";
 import { supabase } from "@/lib/supabase";
 import { getQuote } from "@/lib/quotes";
@@ -22,13 +22,13 @@ export function newArea(): ReportArea {
 }
 
 export async function peekReportNumber(): Promise<string> {
-  const user_id = await requireUserId();
+  const user_id = await requireWorkspaceUserId();
   const { data: seq } = await supabase.from("mp_report_seq").select("next_num").eq("user_id", user_id).maybeSingle();
   return `R-${seq?.next_num ?? 1}`;
 }
 
 async function nextReportNumber(): Promise<string> {
-  const user_id = await requireUserId();
+  const user_id = await requireWorkspaceUserId();
   const { data: seq } = await supabase.from("mp_report_seq").select("next_num").eq("user_id", user_id).maybeSingle();
   const num = seq?.next_num ?? 1;
   if (!seq) {
@@ -52,7 +52,7 @@ export async function getReport(id: string): Promise<Report | null> {
 }
 
 export async function createReport(input: Partial<Report>): Promise<Report> {
-  const user_id = await requireUserId();
+  const user_id = await requireWorkspaceUserId();
   const number = await nextReportNumber();
   const row: Record<string, unknown> = { user_id, number };
   for (const key of REPORT_UPDATE_KEYS) {
@@ -131,7 +131,7 @@ export async function createReportFromQuote(quoteId: string, siteAddress = ""): 
 }
 
 export async function uploadReportPhoto(file: File, reportId: string): Promise<string> {
-  const user_id = await requireUserId();
+  const user_id = await requireWorkspaceUserId();
   const prepared = await prepareImageFile(file);
   const ext = (prepared.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `${user_id}/${reportId}/${crypto.randomUUID()}.${ext}`;

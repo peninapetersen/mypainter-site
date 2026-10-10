@@ -31,6 +31,27 @@ import type { ReportArea } from "@/types/entities";
 
 const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
 
+const emptyForm = {
+  client_id: "",
+  title: "",
+  report_date: todayIsoDate(),
+  site_address: "",
+  summary: "",
+  areas: [] as ReportArea[],
+  recommendations: "",
+  internal_notes: "",
+};
+/** A copy of the report kept in this browser while it is being written, so a failed save can never lose the work. */
+const backupKey = (id: string) => `mp-report-backup-${id}`;
+function readBackup(id: string): { at: string; form: typeof emptyForm } | null {
+  try {
+    const raw = localStorage.getItem(backupKey(id));
+    return raw ? (JSON.parse(raw) as { at: string; form: typeof emptyForm }) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ReportFormPage() {
   const { id: routeId } = useParams();
   const [search] = useSearchParams();
@@ -52,16 +73,11 @@ export function ReportFormPage() {
   const [status, setStatus] = useState<"draft" | "sent">("draft");
   const [docProfile, setDocProfile] = useState(() => documentProfileFromSettings(null));
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [form, setForm] = useState({
-    client_id: "",
-    title: "",
-    report_date: todayIsoDate(),
-    site_address: "",
-    summary: "",
-    areas: [newArea()] as ReportArea[],
-    recommendations: "",
-    internal_notes: "",
-  });
+  const [saveError, setSaveError] = useState("");
+  const [savedAt, setSavedAt] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [restore, setRestore] = useState<{ at: string; form: typeof emptyForm } | null>(null);
+  const [form, setForm] = useState({ ...emptyForm, areas: [newArea()] });
 
   useEffect(() => {
     getWorkSettings().then((ws) => setDocProfile(documentProfileFromSettings(ws))).catch(() => {});
@@ -74,6 +90,8 @@ export function ReportFormPage() {
           setNumber(await peekReportNumber());
           const preClient = search.get("client");
           if (preClient) setForm((f) => ({ ...f, client_id: preClient }));
+          const saved = readBackup("new");
+          if (saved && (saved.form.summary?.trim() || saved.form.title?.trim() || saved.form.areas?.some((a) => a.finding || a.area))) setRestore(saved);
           return;
         }
         const r = await getReport(routeId as string);
@@ -95,6 +113,8 @@ export function ReportFormPage() {
           recommendations: r.recommendations,
           internal_notes: r.internal_notes,
         });
+        const saved = readBackup(r.id);
+        if (saved && new Date(saved.at).getTime() > new Date(r.updated_at).getTime() + 2000) setRestore(saved);
       } catch (e) {
         showError(formatSupabaseError(e));
       } finally {
@@ -122,7 +142,7 @@ export function ReportFormPage() {
   }, [form.areas, photoUrls]);
 
   function setArea(areaId: string, patch: Partial<ReportArea>) {
-    setForm((f) => ({ ...f, areas: f.areas.map((a) => (a.id === areaId ? { ...a, ...patch } : a)) }));
+    change((f) => ({ ...f, areas: f.areas.map((a) => (a.id === areaId ? { ...a, ...patch } : a)) }));
   }
 
   async function addPhotos(areaId: string, files: FileList | null) {
@@ -130,7 +150,7 @@ export function ReportFormPage() {
     try {
       const paths: string[] = [];
       for (const file of Array.from(files)) paths.push(await uploadReportPhoto(file, reportId));
-      setForm((f) => ({
+      change((f) => ({
         ...f,
         areas: f.areas.map((a) => (a.id === areaId ? { ...a, photos: [...a.photos, ...paths] } : a)),
       }));
@@ -144,25 +164,66 @@ export function ReportFormPage() {
     void removeReportPhoto(path);
   }
 
+  function change(next: typeof form | ((f: typeof form) => typeof form)) {
+    setDirty(true);
+    setForm(next);
+  }
+
+  // Keep a copy in this browser as the report is written.
+  useEffect(() => {
+    if (!dirty) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(backupKey(savedOnce.current ? reportId : "new"), JSON.stringify({ at: new Date().toISOString(), form }));
+      } catch {
+        /* storage full or blocked: saving to the database still works */
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [form, dirty, reportId]);
+
+  // Warn before closing the tab with unsaved writing.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   async function persist(): Promise<string | null> {
-    if (!form.title.trim()) {
-      showError("Give the report a title first.");
-      return null;
-    }
+    setSaveError("");
     setSaving(true);
     try {
-      const payload = { ...form, client_id: form.client_id || null };
+      // A blank title or date never blocks a save.
+      const title = form.title.trim() || "Untitled report";
+      const payload = { ...form, title, report_date: form.report_date || null, client_id: form.client_id || null };
+      let savedId = reportId;
       if (!savedOnce.current) {
         const created = await createReport({ ...payload, id: reportId });
         savedOnce.current = true;
+        savedId = created.id;
         setNumber(created.number);
         navigate(`/reports/${created.id}`, { replace: true });
-        return created.id;
+      } else {
+        await updateReport(reportId, payload);
       }
-      await updateReport(reportId, payload);
-      return reportId;
+      if (!form.title.trim()) setForm((f) => ({ ...f, title }));
+      try {
+        localStorage.removeItem(backupKey("new"));
+        localStorage.removeItem(backupKey(savedId));
+      } catch {
+        /* ignore */
+      }
+      setDirty(false);
+      setSavedAt(new Date().toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit" }));
+      return savedId;
     } catch (e) {
-      showError(formatSupabaseError(e));
+      const msg = formatSupabaseError(e);
+      setSaveError(msg);
+      showError(`Not saved: ${msg}`);
       return null;
     } finally {
       setSaving(false);
@@ -240,27 +301,41 @@ export function ReportFormPage() {
       </div>
       {status === "sent" && <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">Sent to the customer.</p>}
 
-      <FormSaveBar placement="top" saveLabel="Save report" saving={saving} onSave={() => void persist()} cancelTo="/reports/list" hint="Nothing is saved until you tap Save report." />
+      {restore && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <p className="font-semibold">There is an unsaved copy of this report from {new Date(restore.at).toLocaleString("en-NZ")}. Restore it?</p>
+          <div className="flex gap-2">
+            <button type="button" className="rounded-lg bg-[var(--mp-navy)] px-3 py-1.5 font-bold text-white" onClick={() => { setForm({ ...restore.form, areas: restore.form.areas?.length ? restore.form.areas : [newArea()] }); setDirty(true); setRestore(null); }}>
+              Restore
+            </button>
+            <button type="button" className="rounded-lg border border-sky-300 px-3 py-1.5 font-semibold" onClick={() => { try { localStorage.removeItem(backupKey(savedOnce.current ? reportId : "new")); } catch { /* ignore */ } setRestore(null); }}>
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
+      <FormSaveBar placement="top" saveLabel="Save report" saving={saving} onSave={() => void persist()} cancelTo="/reports/list" hint={saveError ? `NOT SAVED: ${saveError}` : savedAt ? `Saved at ${savedAt}.` : dirty ? "You have changes that are not saved yet." : "Nothing is saved until you tap Save report."} />
 
       <form onSubmit={(e) => { e.preventDefault(); void persist(); }} className="mx-auto max-w-3xl space-y-6">
-        <input required placeholder="Title, e.g. Exterior paint assessment" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={`${input} py-2.5`} />
+        <input required placeholder="Title, e.g. Exterior paint assessment" value={form.title} onChange={(e) => change({ ...form, title: e.target.value })} className={`${input} py-2.5`} />
 
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
-          <ClientSelect clients={clients} value={form.client_id} onChange={(v) => setForm({ ...form, client_id: v })} />
+          <ClientSelect clients={clients} value={form.client_id} onChange={(v) => change({ ...form, client_id: v })} />
           <div>
             <label className="mb-1 block text-sm font-semibold text-slate-700">Date</label>
-            <input type="date" value={form.report_date} onChange={(e) => setForm({ ...form, report_date: e.target.value })} className={input} />
+            <input type="date" value={form.report_date} onChange={(e) => change({ ...form, report_date: e.target.value })} className={input} />
           </div>
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-semibold text-slate-700">Site address</label>
-          <input placeholder="Where the work is (leave blank to use the client's address)" value={form.site_address} onChange={(e) => setForm({ ...form, site_address: e.target.value })} className={input} />
+          <input placeholder="Where the work is (leave blank to use the client's address)" value={form.site_address} onChange={(e) => change({ ...form, site_address: e.target.value })} className={input} />
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-semibold text-slate-700">Summary</label>
-          <textarea rows={4} placeholder="What Richo found, in a few sentences" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} className={input} />
+          <textarea rows={4} placeholder="What Richo found, in a few sentences" value={form.summary} onChange={(e) => change({ ...form, summary: e.target.value })} className={input} />
         </div>
 
         <div className="space-y-4">
@@ -269,7 +344,7 @@ export function ReportFormPage() {
             <div key={a.id} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
               <div className="flex items-center gap-2">
                 <input placeholder={`Area ${i + 1}, e.g. North wall`} value={a.area} onChange={(e) => setArea(a.id, { area: e.target.value })} className={`${input} font-semibold`} />
-                <button type="button" aria-label="Remove this area" onClick={() => setForm((f) => ({ ...f, areas: f.areas.filter((x) => x.id !== a.id) }))} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                <button type="button" aria-label="Remove this area" onClick={() => change((f) => ({ ...f, areas: f.areas.filter((x) => x.id !== a.id) }))} className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -298,17 +373,17 @@ export function ReportFormPage() {
               </div>
             </div>
           ))}
-          <button type="button" onClick={() => setForm((f) => ({ ...f, areas: [...f.areas, newArea()] }))} className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--mp-orange)]">
+          <button type="button" onClick={() => change((f) => ({ ...f, areas: [...f.areas, newArea()] }))} className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--mp-orange)]">
             <Plus size={15} /> Add area
           </button>
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-semibold text-slate-700">Recommendations and next steps</label>
-          <textarea rows={4} value={form.recommendations} onChange={(e) => setForm({ ...form, recommendations: e.target.value })} className={input} />
+          <textarea rows={4} value={form.recommendations} onChange={(e) => change({ ...form, recommendations: e.target.value })} className={input} />
         </div>
 
-        <RequestNotesCard notes={form.internal_notes} onChange={(internal_notes) => setForm({ ...form, internal_notes })} />
+        <RequestNotesCard notes={form.internal_notes} onChange={(internal_notes) => change({ ...form, internal_notes })} />
 
         {!isNew && (
           <button type="button" onClick={() => void remove()} className="text-sm font-semibold text-red-600 underline">
@@ -317,7 +392,7 @@ export function ReportFormPage() {
         )}
       </form>
 
-      <FormSaveBar placement="bottom" saveLabel="Save report" saving={saving} onSave={() => void persist()} cancelTo="/reports/list" />
+      <FormSaveBar placement="bottom" saveLabel="Save report" saving={saving} onSave={() => void persist()} cancelTo="/reports/list" hint={saveError ? `NOT SAVED: ${saveError}` : savedAt ? `Saved at ${savedAt}.` : dirty ? "Not saved yet." : undefined} />
 
       <DocumentPreviewModal
         open={showPreview}
